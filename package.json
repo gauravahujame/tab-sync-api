@@ -14,11 +14,10 @@
     "docker:prune": "docker system prune -f"
   },
   "_moduleAliases": {
-    "@base": "dist/src",
-    "@routes": "dist/src/routes",
-    "@middlewares": "dist/src/middlewares"
+    "@routes": "dist/routes",
+    "@base": "dist",
+    "@middlewares": "dist/middlewares"
   },
-  "keywords": [],
   "author": "Gaurav Ahuja",
   "license": "ISC",
   "dependencies": {
