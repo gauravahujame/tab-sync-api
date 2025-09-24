@@ -1,5 +1,5 @@
 import sqlite3 from 'sqlite3';
-import { config } from './config.ts';
+import { config } from '@base/config';
 import fs from 'fs';
 import path from 'path';
 

@@ -1,7 +1,7 @@
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 
-import { db } from '../db.ts';
+import { db } from '@base/db';
 
 const router = express.Router();
 

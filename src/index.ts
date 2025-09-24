@@ -1,7 +1,9 @@
+// require('module-alias/register');
+import 'module-alias/register.js';
 import express from 'express';
-import tabsRouter from './routes/tabs.ts';
-import { config } from './config.ts';
-import { errorHandler } from './middlewares/errorHandler.ts';
+import tabsRouter from '@routes/tabs';
+import { config } from '@base/config';
+import { errorHandler } from '@middlewares/errorHandler';
 
 const app = express();
 app.use(express.json());

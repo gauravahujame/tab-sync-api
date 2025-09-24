@@ -1,0 +1,8 @@
+node_modules
+dist
+data
+tabs.db
+*.log
+.env
+.vscode
+.DS_Store
