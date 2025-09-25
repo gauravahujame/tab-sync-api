@@ -1,14 +1,16 @@
+version: '3.8'
+
 services:
   app:
     build:
       context: .
-      target: production   # Matches Dockerfile final stage
+      target: production
     container_name: tab-sync-api
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
     volumes:
-      - tab-sync-data:/app/data         # Mount persist data
+      - tab-sync-data:/app/data
     environment:
       - NODE_ENV=production
       - PORT=${PORT:-3000}

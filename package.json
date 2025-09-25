@@ -2,41 +2,52 @@
   "name": "tab-sync-api",
   "version": "1.0.0",
   "description": "Tab Sync API",
-  "main": "src/index.ts",
+  "type": "module",
+  "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --project tsconfig.build.json",
     "start": "node dist/index.js",
-    "dev": "ts-node -r tsconfig-paths/register src/index.ts",
-    "lint": "npx eslint 'src/**/*.ts'",
+    "prestart": "npm run build",
+    "dev": "NODE_ENV=development tsx watch src/index.ts",
+    "dev:debug": "NODE_OPTIONS='--loader ts-node/esm --inspect' NODE_ENV=development ts-node-dev --respawn --transpile-only src/index.ts",
+    "clean": "rimraf dist",
+    "lint": "eslint 'src/**/*.ts'",
+    "format": "prettier --write 'src/**/*.ts'",
+    "typecheck": "tsc --noEmit",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down -v",
     "docker:logs": "docker compose logs -f",
     "docker:prune": "docker system prune -f"
   },
-  "_moduleAliases": {
-    "@routes": "dist/routes",
-    "@base": "dist",
-    "@middlewares": "dist/middlewares"
-  },
   "author": "Gaurav Ahuja",
   "license": "ISC",
-  "dependencies": {
-    "dotenv": "^17.2.2",
-    "express": "^5.1.0",
-    "module-alias": "^2.2.3",
-    "sqlite3": "^5.1.7"
-  },
   "devDependencies": {
     "@types/express": "^5.0.3",
     "@types/node": "^24.5.2",
+    "@types/sqlite3": "^3.1.11",
     "@typescript-eslint/eslint-plugin": "^8.44.1",
     "@typescript-eslint/parser": "^8.44.1",
     "eslint": "^9.36.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
     "globals": "^16.4.0",
     "nodemon": "^3.1.10",
+    "prettier": "^3.0.0",
+    "rimraf": "^5.0.0",
     "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.9.2",
-    "typescript-eslint": "^8.44.1"
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.0.0",
+    "helmet": "^7.0.0",
+    "module-alias": "^2.2.3",
+    "sqlite3": "^5.1.7",
+    "winston": "^3.10.0",
+    "zod": "^4.1.11"
   }
 }

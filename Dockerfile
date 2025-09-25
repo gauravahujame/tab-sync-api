@@ -1,30 +1,45 @@
 # Builder stage
 FROM node:24-alpine AS builder
+
+# Set the working directory
 WORKDIR /app
 
-# Copy dependency files and install ALL dependencies (including dev)
+# Copy package files
 COPY package*.json ./
+
+# Install all dependencies (including devDependencies)
 RUN npm ci
 
-# Copy TS source and config, then compile
-COPY tsconfig.json ./
-COPY src/ ./src
+# Copy the rest of the application
+COPY . .
+
+# Build the application
 RUN npm run build
 
 # Production stage
 FROM node:24-alpine AS production
+
 WORKDIR /app
 
-# Install only production dependencies, including module-alias
+# Copy package files
 COPY package*.json ./
-RUN apk add --no-cache python3 make g++
+
+# Install only production dependencies
 RUN npm ci --only=production
 
-# Copy compiled app from builder stage
+# Copy the built files from the builder stage
 COPY --from=builder /app/dist ./dist
 
-# Expose your app port (e.g. 3000)
+# Create data directory for SQLite
+RUN mkdir -p /app/data
+
+# Expose the port the app runs on
 EXPOSE 3000
 
-# Start your app
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV DATABASE_PATH=/app/data/tabs.db
+
+# Command to run the application
 CMD ["node", "dist/index.js"]
