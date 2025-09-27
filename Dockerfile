@@ -24,6 +24,24 @@ RUN npm run build
 RUN npm prune --production
 
 # Production stage
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig*.json ./
+
+# Install all dependencies (including devDependencies)
+RUN npm ci --include=dev
+
+# Copy the rest of the application
+COPY . .
+
+# Build the application
+RUN npm run build
+
+# Remove devDependencies
+RUN npm prune --production
+
+# Production stage
 FROM node:24-alpine
 
 # Install runtime dependencies
