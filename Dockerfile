@@ -50,6 +50,13 @@ RUN npm ci --only=production
 # Copy the built files from the builder stage
 COPY --from=builder /app/dist ./dist
 
+# Copy TypeScript source files for scripts
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/tsconfig*.json ./
+
+# Install TypeScript and ts-node for running scripts
+RUN npm install -g typescript ts-node
+
 # Create data directory for SQLite
 RUN mkdir -p /app/data
 

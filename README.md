@@ -41,6 +41,33 @@ A RESTful API for synchronizing browser tabs across devices with user authentica
    npm run dev
    ```
 
+## Scripts
+
+The following utility scripts are available in the container:
+
+1. **Create a new user**:
+   ```bash
+   docker-compose exec tab-sync-api npx ts-node scripts/user-create.ts <email> <password> [--admin]
+   ```
+   Example:
+   ```bash
+   docker-compose exec tab-sync-api npx ts-node scripts/user-create.ts user@example.com mypassword --admin
+   ```
+
+2. **Generate JWT token for a user**:
+   ```bash
+   docker-compose exec tab-sync-api npx ts-node scripts/generate-token.ts <email> <password>
+   ```
+   Example:
+   ```bash
+   docker-compose exec tab-sync-api npx ts-node scripts/generate-token.ts user@example.com mypassword
+   ```
+
+3. **List all users**:
+   ```bash
+   docker-compose exec tab-sync-api npx ts-node scripts/user-list.ts
+   ```
+
 ## Logging
 
 The application uses Winston for logging with the following configuration:
