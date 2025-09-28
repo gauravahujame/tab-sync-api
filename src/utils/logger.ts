@@ -1,7 +1,7 @@
-import winston from 'winston';
-import DailyRotateFile from 'winston-daily-rotate-file';
-import path from 'path';
-import { config } from '../config.js';
+import winston from "winston";
+import DailyRotateFile from "winston-daily-rotate-file";
+import path from "path";
+import { config } from "../config.js";
 
 // Ensure logs directory exists
 const logsDir = path.join(process.cwd(), config.logDir);
@@ -9,19 +9,19 @@ const logsDir = path.join(process.cwd(), config.logDir);
 // Create a format for console output
 const consoleFormat = winston.format.combine(
   winston.format.colorize(),
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
   winston.format.errors({ stack: true }),
   winston.format.printf(
     ({ level, message, timestamp, stack }) =>
-      `${timestamp} ${level}: ${stack || message}`
-  )
+      `${timestamp} ${level}: ${stack || message}`,
+  ),
 );
 
 // Create a format for file output
 const fileFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
   winston.format.errors({ stack: true }),
-  winston.format.json()
+  winston.format.json(),
 );
 
 // Create transports
@@ -33,8 +33,8 @@ const transports = [
   }),
   // Daily rotate file transport for all logs
   new DailyRotateFile({
-    filename: path.join(logsDir, 'application-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
+    filename: path.join(logsDir, "application-%DATE%.log"),
+    datePattern: "YYYY-MM-DD",
     zippedArchive: true,
     maxSize: config.logMaxSize,
     maxFiles: config.logMaxFiles,
@@ -43,13 +43,13 @@ const transports = [
   }),
   // Error logs in separate file
   new DailyRotateFile({
-    filename: path.join(logsDir, 'error-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
+    filename: path.join(logsDir, "error-%DATE%.log"),
+    datePattern: "YYYY-MM-DD",
     zippedArchive: true,
     maxSize: config.logMaxSize,
     maxFiles: config.logErrorMaxFiles,
     format: fileFormat,
-    level: 'error',
+    level: "error",
   }),
 ];
 
@@ -57,12 +57,12 @@ const transports = [
 const logger = winston.createLogger({
   level: config.logLevel,
   format: fileFormat,
-  defaultMeta: { service: 'tab-sync-api' },
+  defaultMeta: { service: "tab-sync-api" },
   transports,
   exceptionHandlers: [
     new DailyRotateFile({
-      filename: path.join(logsDir, 'exceptions-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
+      filename: path.join(logsDir, "exceptions-%DATE%.log"),
+      datePattern: "YYYY-MM-DD",
       zippedArchive: true,
       maxSize: config.logMaxSize,
       maxFiles: config.logMaxFiles,
@@ -70,8 +70,8 @@ const logger = winston.createLogger({
   ],
   rejectionHandlers: [
     new DailyRotateFile({
-      filename: path.join(logsDir, 'rejections-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
+      filename: path.join(logsDir, "rejections-%DATE%.log"),
+      datePattern: "YYYY-MM-DD",
       zippedArchive: true,
       maxSize: config.logMaxSize,
       maxFiles: config.logMaxFiles,

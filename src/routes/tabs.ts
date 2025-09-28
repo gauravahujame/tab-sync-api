@@ -1,8 +1,8 @@
-import express from 'express';
-import type { AuthRequest } from '../middlewares/auth.js';
-import { db } from '../db.js';
-import { z } from 'zod';
-import logger from '../utils/logger.js';
+import express from "express";
+import type { AuthRequest } from "../middlewares/auth.js";
+import { db } from "../db.js";
+import { z } from "zod";
+import logger from "../utils/logger.js";
 
 export const tabsRouter = express.Router();
 
@@ -21,13 +21,14 @@ const tabSchema = z.object({
 
 // Schema for batch tab request
 const batchTabsSchema = z.object({
-  tabs: z.array(tabSchema)
+  tabs: z
+    .array(tabSchema)
     .min(1, { message: "At least one tab must be provided" })
-    .max(5000, { message: "Maximum 5000 tabs per batch allowed" })
+    .max(5000, { message: "Maximum 5000 tabs per batch allowed" }),
 });
 
 // Legacy route for single tab insertion (backward compatibility)
-tabsRouter.post('/', (req: AuthRequest, res, next) => {
+tabsRouter.post("/", (req: AuthRequest, res, next) => {
   try {
     const parseResult = tabSchema.safeParse(req.body);
 
@@ -35,16 +36,26 @@ tabsRouter.post('/', (req: AuthRequest, res, next) => {
       return res.status(400).json({
         success: false,
         error: "Invalid tab input",
-        details: parseResult.error.format()
+        details: parseResult.error.format(),
       });
     }
 
-    const { tabId, url, title, windowId, openerTabId, lastAccessed, incognito, groupId, browserName } = parseResult.data;
+    const {
+      tabId,
+      url,
+      title,
+      windowId,
+      openerTabId,
+      lastAccessed,
+      incognito,
+      groupId,
+      browserName,
+    } = parseResult.data;
 
     // Check if user exists in the request (from auth middleware)
     if (!req.user || !req.user.id) {
       return res.status(401).json({
-        error: "User authentication required"
+        error: "User authentication required",
       });
     }
 
@@ -58,24 +69,27 @@ tabsRouter.post('/', (req: AuthRequest, res, next) => {
         url,
         title || null,
         windowId,
-        openerTabId ?? null,  // Use null coalescing to handle undefined/undefined
+        openerTabId ?? null, // Use null coalescing to handle undefined/undefined
         lastAccessed ?? null,
         incognito ? 1 : 0,
         groupId,
         browserName || null,
-        userId
+        userId,
       ],
       function (err) {
         if (err) {
-          logger.error('Error inserting tab:', { error: err.message, tab: parseResult.data });
+          logger.error("Error inserting tab:", {
+            error: err.message,
+            tab: parseResult.data,
+          });
           return next(err);
         }
 
         res.json({
           success: true,
-          id: this.lastID || null
+          id: this.lastID || null,
         });
-      }
+      },
     );
   } catch (error) {
     next(error);
@@ -83,7 +97,7 @@ tabsRouter.post('/', (req: AuthRequest, res, next) => {
 });
 
 // New batch tabs endpoint
-tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
+tabsRouter.post("/batch", (req: AuthRequest, res, next) => {
   try {
     const parseResult = batchTabsSchema.safeParse(req.body);
 
@@ -91,7 +105,7 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
       return res.status(400).json({
         success: false,
         error: "Invalid batch request",
-        details: parseResult.error.format()
+        details: parseResult.error.format(),
       });
     }
 
@@ -101,7 +115,7 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
     if (!userId) {
       return res.status(401).json({
         success: false,
-        error: "User authentication required"
+        error: "User authentication required",
       });
     }
 
@@ -109,7 +123,7 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
       total: tabs.length,
       stored: 0,
       duplicates: 0,
-      errors: 0
+      errors: 0,
     };
 
     const failedItems: Array<{
@@ -120,7 +134,7 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
       lastAccessed?: number | null;
       reason: string;
     }> = [];
-    
+
     const duplicateItems: Array<{
       index: number;
       existingTabId: number;
@@ -128,7 +142,7 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
       url: string;
       lastAccessed: number | null;
     }> = [];
-    
+
     const storedItems: Array<{
       index: number;
       tabId: number | null;
@@ -138,13 +152,13 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
     }> = [];
 
     db.serialize(async () => {
-      db.run('BEGIN TRANSACTION');
+      db.run("BEGIN TRANSACTION");
 
       const insertStmt = db.prepare(
         `INSERT INTO tabs (
           client_tab_id, url, title, window_id, 
           opener_tab_id, last_accessed, incognito, group_id, browser_name, user_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       );
 
       // Prepare statement to find existing tabs
@@ -152,7 +166,7 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
         `SELECT id, window_id, url, last_accessed 
          FROM tabs 
          WHERE url = ? AND window_id = ? AND client_tab_id = ? AND user_id = ? AND (browser_name = ? OR (browser_name IS NULL AND ? IS NULL))
-         LIMIT 1`
+         LIMIT 1`,
       );
 
       let completed = 0;
@@ -161,21 +175,27 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
       const checkCompletion = () => {
         completed++;
         if (completed === totalTabs) {
-          db.run('COMMIT', (commitErr: Error | null) => {
+          db.run("COMMIT", (commitErr: Error | null) => {
             // Finalize statements before sending response
             insertStmt.finalize((finalizeErr1) => {
               if (finalizeErr1) {
-                logger.error('Error finalizing insert statement:', finalizeErr1);
+                logger.error(
+                  "Error finalizing insert statement:",
+                  finalizeErr1,
+                );
               }
-              
+
               findExistingTabStmt.finalize((finalizeErr2) => {
                 if (finalizeErr2) {
-                  logger.error('Error finalizing find statement:', finalizeErr2);
+                  logger.error(
+                    "Error finalizing find statement:",
+                    finalizeErr2,
+                  );
                 }
-                
+
                 if (commitErr) {
-                  return db.run('ROLLBACK', () => {
-                    logger.error('Error committing transaction:', commitErr);
+                  return db.run("ROLLBACK", () => {
+                    logger.error("Error committing transaction:", commitErr);
                     next(commitErr);
                   });
                 }
@@ -185,7 +205,7 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
                   stats,
                   ...(storedItems.length > 0 && { storedItems }),
                   ...(failedItems.length > 0 && { failedItems }),
-                  ...(duplicateItems.length > 0 && { duplicateItems })
+                  ...(duplicateItems.length > 0 && { duplicateItems }),
                 };
 
                 res.json(response);
@@ -199,7 +219,7 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
         return res.json({
           success: true,
           stats,
-          message: "No tabs to insert"
+          message: "No tabs to insert",
         });
       }
 
@@ -214,7 +234,7 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
             lastAccessed,
             incognito = false,
             groupId = -1,
-            browserName = null
+            browserName = null,
           } = tab;
 
           // First, check if the tab already exists for the same browser
@@ -229,9 +249,12 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
                   windowId,
                   url,
                   lastAccessed: lastAccessed ?? null,
-                  reason: `Error checking for existing tab: ${err.message}`
+                  reason: `Error checking for existing tab: ${err.message}`,
                 });
-                logger.error('Error checking for existing tab:', { error: err.message, tab });
+                logger.error("Error checking for existing tab:", {
+                  error: err.message,
+                  tab,
+                });
                 return checkCompletion();
               }
 
@@ -243,7 +266,7 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
                   existingTabId: existingTab.id,
                   existingWindowId: existingTab.window_id,
                   url: existingTab.url,
-                  lastAccessed: existingTab.last_accessed
+                  lastAccessed: existingTab.last_accessed,
                 });
                 return checkCompletion();
               }
@@ -269,9 +292,12 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
                       windowId,
                       url,
                       lastAccessed: lastAccessed ?? null,
-                      reason: insertErr.message
+                      reason: insertErr.message,
                     });
-                    logger.error('Error inserting tab:', { error: insertErr.message, tab });
+                    logger.error("Error inserting tab:", {
+                      error: insertErr.message,
+                      tab,
+                    });
                   } else if (this.changes > 0) {
                     stats.stored++;
                     storedItems.push({
@@ -279,16 +305,16 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
                       tabId: tabId || null,
                       windowId,
                       url,
-                      lastAccessed: lastAccessed ?? null
+                      lastAccessed: lastAccessed ?? null,
                     });
                   } else {
                     // This case shouldn't happen since we checked for existence
                     stats.duplicates++;
                   }
                   checkCompletion();
-                }
+                },
               );
-            }
+            },
           );
         } catch (error) {
           stats.errors++;
@@ -296,18 +322,18 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
             index,
             tabId: tab.tabId || null,
             windowId: tab.windowId,
-            url: tab.url || 'unknown',
+            url: tab.url || "unknown",
             lastAccessed: tab.lastAccessed ?? null,
-            reason: error instanceof Error ? error.message : 'Unknown error'
+            reason: error instanceof Error ? error.message : "Unknown error",
           });
-          logger.error('Unexpected error processing tab:', { error, tab });
+          logger.error("Unexpected error processing tab:", { error, tab });
           checkCompletion();
         }
       };
 
       // Process all tabs
       tabs.forEach(processTab);
-      
+
       // Note: Statements will be finalized in the checkCompletion function
       // after all operations are complete
     });
@@ -317,12 +343,12 @@ tabsRouter.post('/batch', (req: AuthRequest, res, next) => {
 });
 
 // Get all tabs for the authenticated user
-tabsRouter.get('/', (req: AuthRequest, res, next) => {
+tabsRouter.get("/", (req: AuthRequest, res, next) => {
   // Check if user exists in the request (from auth middleware)
   if (!req.user || !req.user.id) {
     return res.status(401).json({
       success: false,
-      error: "User authentication required"
+      error: "User authentication required",
     });
   }
 
@@ -348,7 +374,7 @@ tabsRouter.get('/', (req: AuthRequest, res, next) => {
 
   db.all(query, [userId], (err, rows) => {
     if (err) {
-      logger.error('Error retrieving tabs:', err.message);
+      logger.error("Error retrieving tabs:", err.message);
       return next(err);
     }
     res.json(rows);

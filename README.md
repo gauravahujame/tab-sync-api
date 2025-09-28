@@ -26,7 +26,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/tab-sync-api.git
+git clone https://github.com:gauravahujame/tab-sync-api.git
 cd tab-sync-api
 
 # Install dependencies
@@ -190,7 +190,7 @@ MIT © [Your Name]
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/tab-sync-api.git
+   git clone https://github.com:gauravahujame/tab-sync-api.git
    cd tab-sync-api
    ```
 
@@ -248,7 +248,7 @@ Key environment variables:
    ```bash
    # Local
    npx ts-node scripts/user-create.ts <email> <password> [--admin]
-   
+
    # Docker
    docker compose exec tab-sync-api npx ts-node scripts/user-create.ts <email> <password> [--admin]
    ```
@@ -257,7 +257,7 @@ Key environment variables:
    ```bash
    # Local
    npx ts-node scripts/generate-token.ts <email> <password>
-   
+
    # Docker
    docker compose exec tab-sync-api npx ts-node scripts/generate-token.ts <email> <password>
    ```
@@ -266,7 +266,7 @@ Key environment variables:
    ```bash
    # Local
    npx ts-node scripts/user-list.ts
-   
+
    # Docker
    docker compose exec tab-sync-api npx ts-node scripts/user-list.ts
    ```

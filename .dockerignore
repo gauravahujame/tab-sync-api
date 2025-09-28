@@ -1,6 +1,12 @@
 # Dependencies
 node_modules
 npm-debug.log
+Dockerfile
+.dockerignore
+test/
+docs/
+*.md
+.git
 
 # Build output
 dist
