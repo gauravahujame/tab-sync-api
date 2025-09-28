@@ -1,36 +1,15 @@
-# Builder stage
+# Build stage
 FROM node:24-alpine AS production
 
 # Set the working directory
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++
-
-# Copy package files
+# Copy package files and configs
 COPY package*.json ./
 COPY tsconfig*.json ./
 
 # Install all dependencies (including devDependencies)
-RUN npm ci --include=dev
-
-# Copy the rest of the application
-COPY . .
-
-# Build the application
-RUN npm run build
-
-# Remove devDependencies
-RUN npm prune --production
-
-# Production stage
-
-# Copy package files
-COPY package*.json ./
-COPY tsconfig*.json ./
-
-# Install all dependencies (including devDependencies)
-RUN npm ci --include=dev
+RUN npm ci
 
 # Copy the rest of the application
 COPY . .
@@ -44,49 +23,42 @@ RUN npm prune --production
 # Production stage
 FROM node:24-alpine
 
-# Install runtime dependencies
+# Install tini for better signal handling
 RUN apk add --no-cache tini
 
+# Set the working directory
 WORKDIR /app
 
-# Set NODE_ENV to production
-ENV NODE_ENV=production
-
-# Create app directories
-RUN mkdir -p /app/data/logs && \
-    chown -R node:node /app
-
-# Switch to non-root user
-USER node
-
 # Copy package files
-COPY --chown=node:node package*.json ./
+COPY package*.json ./
 
-# Install only production dependencies
+# Install production dependencies only
 RUN npm ci --only=production
 
-# Copy the built files from the builder stage
+# Copy built application from builder
 COPY --from=builder /app/dist ./dist
-
-# Copy TypeScript source files for scripts
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/tsconfig*.json ./
 
-# Install TypeScript and ts-node for running scripts
-RUN npm install -g typescript ts-node
+# Copy and set up entrypoint
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Create data directory for SQLite
-RUN mkdir -p /app/data
+# Create app directories and set proper permissions
+RUN mkdir -p /app/data/logs && \
+    addgroup -S app && adduser -S app -G app && \
+    chown -R app:app /app
+
+# Set environment variables
+ENV NODE_ENV=production
 
 # Expose the port the app runs on
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1
+# Switch to non-root user
+USER app
 
-# Use tini as the init process
-ENTRYPOINT ["/sbin/tini", "--"]
-
-# Command to run the application
+# Set the entrypoint and command
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "dist/index.js"]

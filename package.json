@@ -11,8 +11,8 @@
     "dev": "NODE_ENV=development tsx watch src/index.ts",
     "dev:debug": "NODE_OPTIONS='--loader ts-node/esm --inspect' NODE_ENV=development ts-node-dev --respawn --transpile-only src/index.ts",
     "clean": "rimraf dist coverage",
-    "lint": "eslint 'src/**/*.ts' 'test/**/*.ts'",
-    "format": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
+    "lint": "eslint 'src/**/*.ts' 'test/**/*.ts' 'scripts/*.ts'",
+    "format": "prettier --write 'src/**/*.ts' 'test/**/*.ts' 'scripts/*.ts'",
     "typecheck": "tsc --noEmit",
     "test": "NODE_ENV=test jest --detectOpenHandles --forceExit",
     "test:watch": "npm test -- --watch",
@@ -25,6 +25,8 @@
     "docker:prune": "docker system prune -f",
     "user:create": "tsx scripts/user-create.ts",
     "user:list": "tsx scripts/user-list.ts",
+    "db:init": "tsx scripts/init-db.ts",
+    "db:reset": "rm -f data/tabs.db && npm run db:init",
     "prepare": "husky install"
   },
   "author": "Gaurav Ahuja",
@@ -64,6 +66,7 @@
     "typescript-eslint": "^8.44.1"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
