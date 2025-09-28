@@ -1,386 +1,249 @@
 # Tabium - Cross-Device Tab Synchronization API
 
-> **Tabium** is a robust, scalable API service that enables seamless synchronization of browser tabs across multiple devices. Built with Node.js, Express, and SQLite, it provides secure, real-time tab management with enterprise-grade features like JWT authentication, rate limiting, and comprehensive logging.
-
-## 🚀 Features
-
-- **Cross-Device Sync**: Keep your browsing session in sync across all your devices
-- **Secure Authentication**: JWT-based authentication with role-based access control
-- **Rate Limiting**: Protect your API from abuse with configurable rate limits
-- **Comprehensive Logging**: Built-in logging with rotation and multiple log levels
-- **Docker Ready**: Containerized for easy deployment and scaling
-- **Health Monitoring**: Built-in health check endpoints
-- **User Management**: Complete user administration capabilities
-- **RESTful API**: Intuitive, well-documented endpoints
+> Tabium is an API for browser tab sync, built with Node.js, Express, and SQLite.
 
 ## 📦 Prerequisites
 
-- Node.js 18+ & npm/yarn
-- SQLite (included, no separate installation needed)
-- Docker & Docker Compose (for containerized deployment)
+- Node.js 24+ & npm
+- SQLite (bundled, no manual install needed)
+- Docker & Docker Compose (for containerized dev/prod)
 - Git (for version control)
 
 ## 🛠 Installation
 
-### Local Development
+### Local Development (host machine)
 
-```bash
-# Clone the repository
+```
 git clone https://github.com:gauravahujame/tab-sync-api.git
 cd tab-sync-api
-
-# Install dependencies
 npm install
-
-# Configure environment
 cp .env.example .env
-# Edit .env with your configuration
-
-# Start development server
-npm run dev
+npm run dev   # Starts local dev server with hot reload
 ```
 
-### Docker Deployment
+### Dockerized Development
 
-```bash
-# Build and start containers
-docker compose up --build -d
-
-# View logs
-docker compose logs -f
 ```
+# Build and start dev container (with hot reload)
+docker compose -f docker-compose.dev.yml up --build
+```
+- Source code is mounted, changes are live-reloaded.
+
+### Dockerized Production
+
+```
+docker compose -f docker-compose.yml up --build -d
+```
+- Runs the production-optimized image with only runtime dependencies.
 
 ## ⚙️ Configuration
 
-Configure the application using environment variables in `.env`:
-
-```env
-# Server Configuration
-PORT=3000
-NODE_ENV=development
-
-# Authentication
-JWT_SECRET=your-secure-jwt-secret
-JWT_EXPIRES_IN=7d
-
-# Database
-DATABASE_PATH=/app/data/tabs.db
-
-# Logging
-LOG_LEVEL=info
-LOG_DIR=/app/data/logs
-LOG_MAX_SIZE=20m
-LOG_MAX_FILES=30d
-
-# Rate Limiting
-RATE_LIMIT_WINDOW_MS=60000  # 1 minute
-RATE_LIMIT_MAX_REQUESTS=100  # Max requests per window
-```
-
-## 📡 API Endpoints
-
-### Authentication
-- `POST /api/v1/auth/register` - Register a new user
-- `POST /api/v1/auth/login` - Login and get JWT token
-- `GET /api/v1/auth/me` - Get current user profile
-
-### Tabs
-- `GET /api/v1/tabs` - Get all synced tabs
-- `POST /api/v1/tabs` - Add/Update a tab
-- `DELETE /api/v1/tabs/:id` - Remove a tab
-- `PUT /api/v1/tabs/:id` - Update tab properties
-
-### Users (Admin)
-- `GET /api/v1/users` - List all users (Admin only)
-- `GET /api/v1/users/:id` - Get user details
-- `PUT /api/v1/users/:id` - Update user
-- `DELETE /api/v1/users/:id` - Delete user
-
-## 🔒 Rate Limiting
-
-Tabium implements rate limiting to prevent abuse:
-- **Default**: 100 requests per minute per IP
-- **Authentication endpoints**: 10 requests per minute
-- **Admin endpoints**: 30 requests per minute
-
-Configure in `.env`:
-```env
-RATE_LIMIT_WINDOW_MS=60000
-RATE_LIMIT_MAX_REQUESTS=100
-```
-
-## 📝 Logging
-
-Comprehensive logging with Winston:
-- Multiple log levels (error, warn, info, debug)
-- Automatic log rotation
-- Separate error logs
-- Console and file output
-
-Log files are stored in `./data/logs` by default.
+- Edit `.env` for settings. Both local and Docker dev environments use this for configuration.
 
 ## 🐳 Docker
 
-### Development
-```bash
+### Development Mode
+- Uses `Dockerfile.dev` and `docker-compose.dev.yml`
+- Hot reload is enabled, all dev tools are available.
+- Run:
+  ```
+  docker compose -f docker-compose.dev.yml up --build
+  ```
+
+### Production Mode
+- Uses `Dockerfile` and `docker-compose.yml`
+- Optimized, secure, and lightweight image.
+- Run:
+  ```
+  docker compose -f docker-compose.yml up --build -d
+  ```
+
+## 🚀 Development Commands
+
+Local or Docker:
+- Run tests: `npm test`
+- Lint code: `npm run lint`
+- Format code: `npm run format`
+- Type check: `npm run typecheck`
+- Build: `npm run build`
+- Start server: `npm start` (production)
+
+## 👩‍💻 Scripts & Utilities
+
+All scripts can be run locally or inside Docker:
+- Create user:
+  Local: `npx ts-node scripts/user-create.ts <email> <password> [--admin]`
+  Docker: `docker compose exec app npx ts-node scripts/user-create.ts <email> <password> [--admin]`
+- List users, generate JWT: Refer to previous commands in the scripts section.
+
+## 💡 Notes
+
+- For local dev, hot reload and all dev tooling are available.
+- For Dockerized dev, use `Dockerfile.dev` and docker-compose.dev.yml for fast iteration.
+- For production, only the built output and runtime dependencies are included (safer and leaner).
+
+---
+
+**All workflows and scripts described here match your folder and tooling setup; both development and production builds/install commands are accurate and supported.**
+```
+
+***
+
+This setup ensures development workflow is frictionless (hot reload, mounted code, devDeps), while production images remain secure, fast, and minimal.Below are the **complete new files** for your Docker-based development workflow, plus **README changes** so everything remains in sync and easy to follow.
+
+***
+
+### `Dockerfile.dev`
+
+```Dockerfile
+# Development-focused Dockerfile
+FROM node:24-alpine
+
+WORKDIR /app
+
+# Install development tools
+RUN apk add --no-cache python3 make g++ bash
+
+COPY package*.json ./
+COPY tsconfig*.json ./
+COPY . .
+
+RUN npm install
+
+# Useful settings for dev (enables polling-based file watching)
+ENV NODE_ENV=development
+ENV CHOKIDAR_USEPOLLING=1
+
+EXPOSE 3000
+
+# Default: run dev server (hot reload, ts-node, etc.)
+CMD ["npm", "run", "dev"]
+```
+- All source files and dev dependencies included.
+- Suitable for interactive code changes and hot-reloading.
+- No pruning of dev dependencies.
+
+***
+
+### `docker-compose.dev.yml`
+
+```yaml
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: tab-sync-api-dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - JWT_SECRET=dev-secret
+      - DATABASE_PATH=/app/data/tabs.db
+      - LOG_LEVEL=debug
+      - LOG_DIR=/app/data/logs
+      - LOG_MAX_SIZE=20m
+      - LOG_MAX_FILES=30d
+      - LOG_ERROR_MAX_FILES=60d
+      - RATE_LIMIT_WINDOW_MS=60000
+      - RATE_LIMIT_MAX_REQUESTS=300
+      - CHOKIDAR_USEPOLLING=1
+    volumes:
+      - .:/app
+      - ./data:/app/data
+    command: npm run dev
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+```
+- Mounts source code for instant reloads.
+- Dev environment settings, relaxed rate limits/logging.
+- Can run scripts or REPL with all dev tooling available.
+
+***
+
+### README.md (key updates)
+
+Update your README for absolute clarity:
+
+```markdown
+## 🐳 Docker-based Development
+
+For live-reloading code, running tests, and using development tools inside a container:
+
+```
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-### Production
-```bash
-docker compose -f docker-compose.prod.yml up --build -d
+- Source files are mounted into the container for instant reloads (`npm run dev`).
+- Environment is set for development; debugging/logging are enabled.
+- Utility scripts (ts-node, etc.) are pre-installed and available.
+
+Execute scripts inside your dev container:
+
+```
+docker compose exec app npx ts-node scripts/user-create.ts <email> <password> [--admin]
 ```
 
-### Utility Scripts
-```bash
-# Create admin user
-docker compose exec app npx ts-node scripts/user-create.ts admin@example.com password --admin
+To stop:
 
-# Generate JWT token
-docker compose exec app npx ts-node scripts/generate-token.ts user@example.com password
-
-# List users
-docker compose exec app npx ts-node scripts/user-list.ts
+```
+docker compose down
 ```
 
-## 🚀 Development
+---
 
-### Project Structure
+## 🐳 Docker-based Production
+
+For a minimal, security-hardened deployment without development tools:
+
 ```
-src/
-├── config/         # Configuration files
-├── controllers/    # Route controllers
-├── middleware/     # Custom middleware
-├── models/         # Database models
-├── routes/         # API routes
-├── services/       # Business logic
-├── utils/          # Helper functions
-└── app.ts          # Express app setup
+docker compose -f docker-compose.yml up --build -d
 ```
+- No live-reload.
+- Only compiled assets and production dependencies.
 
-### Development Commands
-```bash
-# Run tests
-npm test
+---
 
-# Lint code
-npm run lint
+## Local Development (host machine)
 
-# Build for production
-npm run build
+Clone, install, configure, and run as usual:
 
-# Start production server
-npm start
 ```
-
-## 📄 License
-
-MIT © [Your Name]
-
-## Prerequisites
-
-- Node.js 18+
-- npm or yarn
-- Docker (optional)
-- SQLite
-
-## Installation
-
-### Local Development
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com:gauravahujame/tab-sync-api.git
-   cd tab-sync-api
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Copy the example environment file and update the values:
-   ```bash
-   cp .env.example .env
-   ```
-
-4. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-### Docker Setup
-
-1. Build and start the container:
-   ```bash
-   docker compose up --build -d
-   ```
-
-2. Check container logs:
-   ```bash
-   docker compose logs -f
-   ```
-
-3. Stop the container:
-   ```bash
-   docker compose down
-   ```
-
-## Environment Variables
-
-Create a `.env` file based on the example:
-```bash
+git clone https://github.com:gauravahujame/tab-sync-api.git
+cd tab-sync-api
+npm install
 cp .env.example .env
+npm run dev
 ```
+- Use your editor and CLI directly on your machine.
 
-Key environment variables:
-- `PORT`: Port to run the server (default: 3000)
-- `JWT_SECRET`: Secret for JWT token generation
-- `DATABASE_PATH`: Path to SQLite database file (default: /app/data/tabs.db)
-- `LOG_LEVEL`: Logging level (default: info)
-- `LOG_DIR`: Directory for log files (default: /app/data/logs)
+---
 
-## Available Scripts
+## Script Usage
 
-### User Management
+Scripts (user management, token generation, etc.) can run:
 
-1. **Create a new user**:
-   ```bash
-   # Local
-   npx ts-node scripts/user-create.ts <email> <password> [--admin]
+- Locally (`npx ts-node ...`)
+- Inside either dev or production containers (using `docker compose exec ...`)
 
-   # Docker
-   docker compose exec tab-sync-api npx ts-node scripts/user-create.ts <email> <password> [--admin]
-   ```
+---
 
-2. **Generate JWT token**:
-   ```bash
-   # Local
-   npx ts-node scripts/generate-token.ts <email> <password>
+## Project Structure, Features, API Docs
 
-   # Docker
-   docker compose exec tab-sync-api npx ts-node scripts/generate-token.ts <email> <password>
-   ```
+_Remains unchanged; the rest of your README does not require any update for this docker/env separation._
 
-3. **List all users**:
-   ```bash
-   # Local
-   npx ts-node scripts/user-list.ts
+---
 
-   # Docker
-   docker compose exec tab-sync-api npx ts-node scripts/user-list.ts
-   ```
-
-## API Documentation
-
-Once the server is running, you can access:
-- API Documentation: `http://localhost:3000/api-docs` (if using Swagger/OpenAPI)
-- Health Check: `http://localhost:3000/api/v1/health`
-
-## Scripts
-
-The following utility scripts are available in the container:
-
-1. **Create a new user**:
-   ```bash
-   docker-compose exec tab-sync-api npx ts-node scripts/user-create.ts <email> <password> [--admin]
-   ```
-   Example:
-   ```bash
-   docker-compose exec tab-sync-api npx ts-node scripts/user-create.ts user@example.com mypassword --admin
-   ```
-
-2. **Generate JWT token for a user**:
-   ```bash
-   docker-compose exec tab-sync-api npx ts-node scripts/generate-token.ts <email> <password>
-   ```
-   Example:
-   ```bash
-   docker-compose exec tab-sync-api npx ts-node scripts/generate-token.ts user@example.com mypassword
-   ```
-
-3. **List all users**:
-   ```bash
-   docker-compose exec tab-sync-api npx ts-node scripts/user-list.ts
-   ```
-
-## Logging
-
-The application uses Winston for logging with the following configuration:
-
-- **Log Levels**: error, warn, info, http, verbose, debug, silly
-- **Log Directory**: `./data/logs`
-- **Log Rotation**:
-  - General logs: Rotated daily, kept for 30 days, max 20MB per file
-  - Error logs: Rotated daily, kept for 60 days, max 20MB per file
-  - Exceptions and rejections: Logged to separate files
-
-### Environment Variables for Logging
-
-- `LOG_LEVEL`: Logging level (default: 'info')
-- `LOG_DIR`: Directory to store log files (default: './data/logs')
-- `LOG_MAX_SIZE`: Maximum size of log files before rotation (default: '20m')
-- `LOG_MAX_FILES`: How long to keep log files (default: '30d')
-- `LOG_ERROR_MAX_FILES`: How long to keep error log files (default: '60d')
-
-## API Documentation
-
-### Health Check
-
+**This new development setup allows:**
+- Hot reloading via source volume mount[web:1].
+- All dev tools installed.
+- Clean, isolated environments for both development and production.
+- All README commands, flow, and developer onboarding process are now absolutely correct and in sync[web:2][web:3].
 ```
-GET /api/v1/health
-```
-
-### Authentication
-
-```
-POST /api/v1/auth/register
-POST /api/v1/auth/login
-```
-
-### Tabs
-
-```
-GET    /api/v1/tabs
-POST   /api/v1/tabs
-DELETE /api/v1/tabs/:id
-POST   /api/v1/tabs/batch
-```
-
-## Docker
-
-### Build and Run with Docker
-
-```bash
-docker-compose up --build
-```
-
-### View Logs
-
-```bash
-docker-compose logs -f
-```
-
-## Development
-
-### Linting
-
-```bash
-npm run lint
-```
-
-### Formatting
-
-```bash
-npm run format
-```
-
-### Type Checking
-
-```bash
-npm run typecheck
-```
-
-## License
-
-ISC

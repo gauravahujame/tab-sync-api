@@ -1,0 +1,33 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: tab-sync-api-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app       # Mount source code for hot reload
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - JWT_SECRET=dev-secret
+      - DATABASE_PATH=/app/data/tabs.db
+      - LOG_LEVEL=debug
+      - LOG_DIR=/app/data/logs
+      - LOG_MAX_SIZE=20m
+      - LOG_MAX_FILES=30d
+      - LOG_ERROR_MAX_FILES=60d
+      - RATE_LIMIT_WINDOW_MS=60000
+      - RATE_LIMIT_MAX_REQUESTS=300
+      - CHOKIDAR_USEPOLLING=1  # Enable hot reload in Docker
+    command: npm run dev
+    depends_on:
+      - app
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

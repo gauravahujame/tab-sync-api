@@ -1,0 +1,30 @@
+# --- DEVELOPMENT DOCKERFILE ---
+
+FROM node:24-alpine
+
+WORKDIR /app
+
+# Install build dependencies and dev tools
+RUN apk add --no-cache python3 make g++ bash
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig*.json ./
+
+# Install all dependencies (including devDeps)
+RUN npm install
+
+# Copy rest of the source code
+COPY . .
+
+# Expose app port for dev server and debugging tools
+EXPOSE 3000
+
+# Useful environment overrides
+ENV NODE_ENV=development
+
+# Enable file system polling for hot reload in Docker
+ENV CHOKIDAR_USEPOLLING=1
+
+# Run the dev server with hot reload
+CMD ["npm", "run", "dev"]
