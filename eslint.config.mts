@@ -8,7 +8,7 @@ export default defineConfig([
     files: ["**/*.{js,mjs,cjs,ts,mts,cts}"],
     languageOptions: {
       globals: {
-        ...globals.node, // Add Node.js globals including 'process'
+        ...globals.node,
         ...globals.browser,
       },
     },
