@@ -60,7 +60,7 @@ app.use("/api/v1/auth", authRouter);
 app.use(errorHandler);
 
 // Start server
-const server = app.listen(config.port, () => {
+const server = app.listen(config.port, "0.0.0.0", () => {
   logger.info(
     `Server is running in ${config.nodeEnv} mode on port ${config.port}`,
   );
