@@ -58,6 +58,12 @@ docker compose -f docker-compose.yml up --build -d
   docker compose -f docker-compose.yml up --build -d
   ```
 
+### One-liner to fix this issue
+```
+docker compose down && docker builder prune -af && docker compose build --no-cache && docker compose up
+```
+
+
 ## 🚀 Development Commands
 
 Local or Docker:
