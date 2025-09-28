@@ -19,7 +19,10 @@ export default defineConfig([
       prettier: prettierPlugin,
     },
     rules: {
-      "@typescript-eslint/no-unused-vars": ["warn"],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_" },
+      ],
       "@typescript-eslint/no-explicit-any": ["off"], // Allow any in tests and mocks
       "@typescript-eslint/no-unused-parameters": ["off"], // Allow unused params in test mocks
       "no-console": ["off"],

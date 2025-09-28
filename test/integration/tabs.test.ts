@@ -12,7 +12,7 @@ const getAsync = promisify(db.get.bind(db));
 
 describe("Tabs API", () => {
   let testUserId: number;
-  // let testToken: string;
+  let testToken: string;
   const testUser = {
     email: "tabs-test@example.com",
     name: "Tabs Test User",
