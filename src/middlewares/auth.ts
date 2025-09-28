@@ -3,9 +3,6 @@ import jwt from "jsonwebtoken";
 import { config } from "../config.js";
 import { AuthRequest, JWTPayload } from "../types/index.js";
 
-// Re-export for backward compatibility
-export { AuthRequest } from "../types/index.js";
-
 export function authMiddleware(
   req: AuthRequest,
   res: Response,
