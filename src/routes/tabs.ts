@@ -1,5 +1,5 @@
 import express from "express";
-import type { AuthRequest } from "../middlewares/auth.js";
+import type { AuthRequest } from "../types/index.js";
 import { db } from "../db.js";
 import { z } from "zod";
 import logger from "../utils/logger.js";
@@ -62,7 +62,7 @@ tabsRouter.post("/", (req: AuthRequest, res, next) => {
     const userId = req.user.id;
 
     db.run(
-      `INSERT INTO tabs (client_tab_id, url, title, window_id, opener_tab_id, last_accessed, incognito, group_id, browser_name, user_id) 
+      `INSERT INTO tabs (client_tab_id, url, title, window_id, opener_tab_id, last_accessed, incognito, group_id, browser_name, user_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         tabId || null,
@@ -156,15 +156,15 @@ tabsRouter.post("/batch", (req: AuthRequest, res, next) => {
 
       const insertStmt = db.prepare(
         `INSERT INTO tabs (
-          client_tab_id, url, title, window_id, 
+          client_tab_id, url, title, window_id,
           opener_tab_id, last_accessed, incognito, group_id, browser_name, user_id
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       );
 
       // Prepare statement to find existing tabs
       const findExistingTabStmt = db.prepare(
-        `SELECT id, window_id, url, last_accessed 
-         FROM tabs 
+        `SELECT id, window_id, url, last_accessed
+         FROM tabs
          WHERE url = ? AND window_id = ? AND client_tab_id = ? AND user_id = ? AND (browser_name = ? OR (browser_name IS NULL AND ? IS NULL))
          LIMIT 1`,
       );
