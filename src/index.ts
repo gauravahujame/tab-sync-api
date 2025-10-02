@@ -10,11 +10,25 @@ import { authMiddleware } from "./middlewares/auth.js";
 import { tabsRouter } from "./routes/tabs.js";
 import { authRouter } from "./routes/auth.js";
 import logger, { stream } from "./utils/logger.js";
+import cors from "cors";
 
 export const app = express();
 
 // Security headers
 app.use(helmet());
+
+// CORS configuration
+app.use(
+  cors({
+    origin: "*", // Allow all origins for now
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  }),
+);
+
+// Handle preflight requests
+app.options("*", cors());
 
 // HTTP request logging
 app.use(morgan("combined", { stream }));
