@@ -14,21 +14,72 @@ import cors from "cors";
 
 export const app = express();
 
-// Security headers
-app.use(helmet());
-
-// CORS configuration
+// Security headers - Configure helmet to allow CORS
 app.use(
-  cors({
-    origin: "*", // Allow all origins for now
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
   }),
 );
 
-// Handle preflight requests
-app.options("*", cors());
+// CORS configuration for Chrome extension support
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, Postman, curl)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // Allow chrome-extension:// origins
+    if (origin.startsWith("chrome-extension://")) {
+      return callback(null, true);
+    }
+
+    // Allow moz-extension:// origins (Firefox)
+    if (origin.startsWith("moz-extension://")) {
+      return callback(null, true);
+    }
+
+    // Check against allowed origins from config
+    if (
+      config.allowedOrigins.length === 0 ||
+      config.allowedOrigins.includes(origin) ||
+      config.allowedOrigins.includes("*")
+    ) {
+      return callback(null, true);
+    }
+
+    // In development mode, allow localhost and local IPs
+    if (config.isDevelopment) {
+      if (
+        origin.includes("localhost") ||
+        origin.includes("127.0.0.1") ||
+        /^https?:\/\/(10|172\.16|192\.168|100\.64)\./.test(origin)
+      ) {
+        return callback(null, true);
+      }
+    }
+
+    callback(new Error("Not allowed by CORS"));
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+  ],
+  exposedHeaders: ["Content-Range", "X-Content-Range"],
+  credentials: true,
+  maxAge: 86400, // 24 hours
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options("*", cors(corsOptions));
 
 // HTTP request logging
 app.use(morgan("combined", { stream }));

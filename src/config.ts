@@ -9,6 +9,7 @@ const configSchema = z.object({
   JWT_SECRET: z.string().min(1).optional(),
   RATE_LIMIT_WINDOW_MS: z.string().regex(/^\d+$/).optional(),
   RATE_LIMIT_MAX_REQUESTS: z.string().regex(/^\d+$/).optional(),
+  ALLOWED_ORIGINS: z.string().optional(),
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
@@ -42,6 +43,11 @@ export const config = {
 
   // JWT
   jwtSecret: env.JWT_SECRET || "default-secret-key-change-in-production",
+
+  // CORS
+  allowedOrigins: env.ALLOWED_ORIGINS
+    ? env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
+    : [],
 
   // Rate limiting
   rateLimit: {
