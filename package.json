@@ -30,8 +30,7 @@
     "db:init": "tsx scripts/init-db.ts",
     "db:reset": "rm -f data/tabs.db && pnpm run db:init",
     "db:clean": "rm -rf data/tabs.db data/logs",
-    "setup": "pnpm install && pnpm run db:init",
-    "prepare": "husky install"
+    "setup": "pnpm install && pnpm run db:init"
   },
   "author": "Gaurav Ahuja",
   "license": "ISC",

@@ -16,10 +16,12 @@
 ```
 git clone https://github.com:gauravahujame/tab-sync-api.git
 cd tab-sync-api
-npm install
+pnpm install
 cp .env.example .env
-npm run dev   # Starts local dev server with hot reload
+pnpm run dev   # Starts local dev server with hot reload
 ```
+
+- **Optional (enable Git hooks):** Husky no longer runs automatically during installs. If you want the pre-commit hooks, run `pnpm dlx husky install` once after cloning.
 
 ### Dockerized Development
 
@@ -67,12 +69,12 @@ docker compose down && docker builder prune -af && docker compose build --no-cac
 ## 🚀 Development Commands
 
 Local or Docker:
-- Run tests: `npm test`
-- Lint code: `npm run lint`
-- Format code: `npm run format`
-- Type check: `npm run typecheck`
-- Build: `npm run build`
-- Start server: `npm start` (production)
+- Run tests: `pnpm test`
+- Lint code: `pnpm run lint`
+- Format code: `pnpm run format`
+- Type check: `pnpm run typecheck`
+- Build: `pnpm run build`
+- Start server: `pnpm start` (production)
 
 ## 👩‍💻 Scripts & Utilities
 
