@@ -26,11 +26,11 @@ const dbAll = promisify(db.all).bind(db);
 async function listUsers() {
   try {
     console.log("\n👥 User List");
-    console.log("=".repeat(70));
+    console.log("=".repeat(90));
     console.log(
-      "ID  | Name                 | Email                | Created At          ",
+      "ID  | Name                 | Email                | Browser Name      | Created At          ",
     );
-    console.log("-".repeat(70));
+    console.log("-".repeat(90));
 
     // Get all users
     const users = await dbAll("SELECT * FROM users ORDER BY id");
@@ -42,28 +42,35 @@ async function listUsers() {
     } else {
       users.forEach((user) => {
         const id = user.id.toString().padEnd(3);
-        const name = user.name.substring(0, 20).padEnd(20);
+        const name = (user.name || "").substring(0, 20).padEnd(20);
         const email = user.email.substring(0, 20).padEnd(20);
+        const browserName = (user.browser_name || "unknown")
+          .substring(0, 17)
+          .padEnd(17);
         const createdAt = new Date(user.created_at).toLocaleString();
 
-        console.log(`${id} | ${name} | ${email} | ${createdAt}`);
+        console.log(
+          `${id} | ${name} | ${email} | ${browserName} | ${createdAt}`,
+        );
       });
 
-      console.log("=".repeat(70));
+      console.log("=".repeat(90));
       console.log(`Total users: ${users.length}`);
     }
 
     console.log("\n🔑 User Tokens:");
-    console.log("=".repeat(70));
+    console.log("=".repeat(90));
 
     if (users.length === 0) {
       console.log("No users found.");
     } else {
       users.forEach((user) => {
-        console.log(`User ID: ${user.id} (${user.name})`);
+        console.log(
+          `User ID: ${user.id} (${user.name}) - Browser: ${user.browser_name || "unknown"}`,
+        );
         console.log("Token:");
         console.log(user.token);
-        console.log("-".repeat(70));
+        console.log("-".repeat(90));
       });
     }
   } catch (error) {

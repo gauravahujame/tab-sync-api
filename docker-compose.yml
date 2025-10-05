@@ -21,13 +21,12 @@ services:
       - LOG_ERROR_MAX_FILES=${LOG_ERROR_MAX_FILES:-60d}
       - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-60000}
       - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-60}
-      # Add any additional environment variables needed for your application
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${PORT:-3000}/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s  # Give more time for the first health check to allow for DB initialization
+      start_period: 30s
     logging:
       driver: "json-file"
       options:

@@ -32,6 +32,27 @@ const question = (query: string) => {
   });
 };
 
+const promptBrowserName = async (existingBrowserName?: string | null) => {
+  while (true) {
+    const promptLabel = existingBrowserName
+      ? `Enter browser name [${existingBrowserName}]: `
+      : "Enter browser name: ";
+
+    const answer = (await question(promptLabel)).trim();
+
+    if (!answer && existingBrowserName) {
+      return existingBrowserName;
+    }
+
+    if (!answer) {
+      console.log("Browser name is required. Please provide a value.");
+      continue;
+    }
+
+    return answer;
+  }
+};
+
 // Connect to the database
 const dbDir = path.dirname(DB_PATH);
 fs.mkdirSync(dbDir, { recursive: true });
@@ -64,14 +85,12 @@ async function createUser() {
       throw new Error("Invalid email address");
     }
 
-    // Optional browser name
-    const browserName =
-      (await question("Enter browser name (Optional): ")).trim() || null;
-
     // Check if user already exists
     const existingUser = await dbGet("SELECT * FROM users WHERE email = ?", [
       email,
     ]);
+
+    const browserName = await promptBrowserName(existingUser?.browser_name);
 
     if (existingUser) {
       console.log("\n⚠️  User with this email already exists!");
@@ -90,6 +109,7 @@ async function createUser() {
       id: existingUser ? existingUser.id : null, // Will be updated after user creation for new users
       name,
       email,
+      browserName,
     };
 
     const token = jwt.sign(payload, JWT_SECRET, {
@@ -120,6 +140,7 @@ async function createUser() {
         id: userId,
         name,
         email,
+        browserName,
       };
 
       const updatedToken = jwt.sign(updatedPayload, JWT_SECRET, {

@@ -7,7 +7,8 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - .:/app       # Mount source code for hot reload
+      - .:/app                    # Mount source code for hot reload
+      - /app/node_modules          # Prevent host node_modules from overriding container
       - ./data:/app/data
     environment:
       - NODE_ENV=development
@@ -21,10 +22,8 @@ services:
       - LOG_ERROR_MAX_FILES=60d
       - RATE_LIMIT_WINDOW_MS=60000
       - RATE_LIMIT_MAX_REQUESTS=300
-      - CHOKIDAR_USEPOLLING=1  # Enable hot reload in Docker
-    command: npm run dev
-    depends_on:
-      - app
+      - CHOKIDAR_USEPOLLING=1    # Enable hot reload in Docker
+    command: pnpm run dev
     restart: unless-stopped
     logging:
       driver: "json-file"

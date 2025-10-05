@@ -1,16 +1,17 @@
-import "module-alias/register.js";
-import path from "path";
-import helmet from "helmet";
+import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import "module-alias/register.js";
 import morgan from "morgan";
+import path from "path";
 import { config } from "./config.js";
-import { errorHandler } from "./middlewares/errorHandler.js";
 import { authMiddleware } from "./middlewares/auth.js";
-import { tabsRouter } from "./routes/tabs.js";
+import { errorHandler } from "./middlewares/errorHandler.js";
 import { authRouter } from "./routes/auth.js";
+import { tabsRouter } from "./routes/tabs.js";
 import logger, { stream } from "./utils/logger.js";
-import cors from "cors";
+import { initializeStartup } from "./utils/startup.js";
 
 export const app = express();
 
@@ -79,7 +80,9 @@ const corsOptions: cors.CorsOptions = {
 app.use(cors(corsOptions));
 
 // Handle preflight requests explicitly
-app.options("*", cors(corsOptions));
+// app.options("*", cors(corsOptions));
+// Handle preflight requests explicitly - Express 5 compatible
+app.options("/*splat", cors(corsOptions)); // ✅ Changed from "*"
 
 // HTTP request logging
 app.use(morgan("combined", { stream }));
@@ -124,13 +127,37 @@ app.use("/api/v1/auth", authRouter);
 
 app.use(errorHandler);
 
-// Start server
-const server = app.listen(config.port, "0.0.0.0", () => {
-  logger.info(
-    `Server is running in ${config.nodeEnv} mode on port ${config.port}`,
-  );
-  logger.info(`Log level: ${config.logLevel}`);
-  logger.info(`Logs directory: ${path.join(process.cwd(), config.logDir)}`);
+// Initialize database and create default user before starting server
+// This ensures console output is visible before Express takes over
+let server: ReturnType<typeof app.listen>;
+
+async function startServer() {
+  try {
+    // Run startup initialization first
+    await initializeStartup();
+
+    // Now start the Express server
+    const host = "0.0.0.0";
+    server = app.listen(config.port, host, () => {
+      const accessUrl = `http://localhost:${config.port}`;
+      logger.info(
+        `Server is running in ${config.nodeEnv} mode on ${host}:${config.port}`,
+      );
+      logger.info(`Accessible locally at ${accessUrl}`);
+      logger.info(`Log level: ${config.logLevel}`);
+      logger.info(`Logs directory: ${path.join(process.cwd(), config.logDir)}`);
+    });
+  } catch (error) {
+    logger.error("Failed to start server:", error);
+    process.exit(1);
+  }
+}
+
+// Start the server
+console.log("🚀 Starting Tab Sync API server...");
+startServer().catch((error) => {
+  console.error("❌ Failed to start server:", error);
+  process.exit(1);
 });
 
 // Graceful shutdown handler

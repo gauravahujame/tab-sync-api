@@ -8,8 +8,9 @@ import { generateTestToken } from "./test-utils.js";
 export const createTestClient = (
   userId: number = 1,
   email: string = "test@example.com",
+  browserName: string = "test-browser",
 ) => {
-  const token = generateTestToken(userId, email);
+  const token = generateTestToken(userId, email, browserName);
   const request = supertest(app);
 
   return {

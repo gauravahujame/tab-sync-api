@@ -17,14 +17,16 @@ describe("Authentication API", () => {
     email: "test@example.com",
     name: "Test User",
     token: "test-token-123",
+    browserName: "test-browser",
   };
 
   // Declare client variable at the suite level
-  let client;
+  type TestClient = ReturnType<typeof createTestClient>;
+  let client: TestClient;
 
   beforeAll(async () => {
     // Create the test client with the test user's email
-    client = createTestClient(1, testUser.email);
+    client = createTestClient(1, testUser.email, testUser.browserName);
     // Optionally create the test user in the database if needed
     await createTestUser(testUser);
   });

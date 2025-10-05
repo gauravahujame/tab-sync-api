@@ -1,7 +1,6 @@
 import sqlite3 from "sqlite3";
 import { promisify } from "util";
-import bcrypt from "bcryptjs";
-import { v4 as uuidv4 } from "uuid";
+import jwt from "jsonwebtoken";
 import logger from "../src/utils/logger";
 import { config } from "../src/config";
 
@@ -29,31 +28,63 @@ async function initializeDatabase() {
       logger.warn("╠══════════════════════════════════════════════════╣");
 
       // Create default admin user
-      const userId = uuidv4();
-      const apiKey = `sk_${uuidv4().replace(/-/g, "")}`;
-      const hashedPassword = await bcrypt.hash("admin123", 10);
+      const name = "Admin User";
+      const email = "admin@tabsync.local";
+      const browserName = "default-browser";
 
+      // Generate JWT token
+      const payload = {
+        id: null, // Will be updated after user creation
+        name,
+        email,
+        browserName,
+      };
+
+      const token = jwt.sign(payload, config.jwtSecret, {
+        expiresIn: "365d",
+      });
+
+      // Insert user first to get the ID
       await dbRun(
-        "INSERT INTO users (id, email, password, name, role, api_key, is_active, created_at, updated_at) " +
-          "VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
-        [
-          userId,
-          "admin@example.com",
-          hashedPassword,
-          "Admin",
-          "admin",
-          apiKey,
-          1,
-        ],
+        "INSERT INTO users (email, name, token, browser_name, created_at) " +
+          "VALUES (?, ?, ?, ?, datetime('now'))",
+        [email, name, token, browserName],
       );
+
+      // Get the newly inserted user ID
+      const newUser = await dbAll("SELECT last_insert_rowid() as id");
+      const userId = newUser[0].id;
+
+      // Update token with correct user ID
+      const updatedPayload = {
+        id: userId,
+        name,
+        email,
+        browserName,
+      };
+
+      const updatedToken = jwt.sign(updatedPayload, config.jwtSecret, {
+        expiresIn: "365d",
+      });
+
+      // Update the token in database
+      await dbRun("UPDATE users SET token = ? WHERE id = ?", [
+        updatedToken,
+        userId,
+      ]);
+
       // Log the admin user details in a clearly visible format
       logger.warn("║  DEFAULT ADMIN USER CREATED:                     ");
-      logger.warn("║  Email:    admin@example.com                     ");
-      logger.warn("║  Password: admin123                              ");
-      logger.warn(`║  API Key:  ${apiKey}                             `);
+      logger.warn(`║  ID:       ${userId}                             `);
+      logger.warn(`║  Email:    ${email}                              `);
+      logger.warn(`║  Name:     ${name}                               `);
+      logger.warn(`║  Browser:  ${browserName}                        `);
+      logger.warn("║                                                  ");
+      logger.warn("║  🔑 JWT TOKEN:                                   ");
+      logger.warn(`║  ${updatedToken.substring(0, 40)}...`);
       logger.warn("╠══════════════════════════════════════════════════╣");
-      logger.warn("║  IMPORTANT: Change the default credentials       ║");
-      logger.warn("║  immediately after first login!                  ║");
+      logger.warn("║  IMPORTANT: Use this token for authentication    ║");
+      logger.warn("║  Add to Authorization header: Bearer <token>     ║");
       logger.warn("╚══════════════════════════════════════════════════╝");
 
       // Create some sample data if needed

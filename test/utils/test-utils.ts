@@ -1,11 +1,54 @@
 import { db } from "../../src/db.js";
-import { promisify } from "util";
 import jwt from "jsonwebtoken";
+import type { RunResult } from "sqlite3";
 
-// Promisify database methods
-const runAsync = promisify(db.run.bind(db));
-const getAsync = promisify(db.get.bind(db));
-const allAsync = promisify(db.all.bind(db));
+export const runAsync = (
+  sql: string,
+  params: unknown[] = [],
+): Promise<{ lastID: number; changes: number }> =>
+  new Promise((resolve, reject) => {
+    db.run(sql, params, function (this: RunResult, err: Error | null) {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      resolve({
+        lastID: this?.lastID ?? 0,
+        changes: this?.changes ?? 0,
+      });
+    });
+  });
+
+export const getAsync = <T = Record<string, unknown>>(
+  sql: string,
+  params: unknown[] = [],
+): Promise<T | undefined> =>
+  new Promise((resolve, reject) => {
+    db.get(sql, params, (err: Error | null, row: unknown) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      resolve(row as T | undefined);
+    });
+  });
+
+export const allAsync = <T = Record<string, unknown>>(
+  sql: string,
+  params: unknown[] = [],
+): Promise<T[]> =>
+  new Promise((resolve, reject) => {
+    db.all(sql, params, (err: Error | null, rows: unknown[]) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      resolve(rows as T[]);
+    });
+  });
 
 /**
  * Clears all data from the test database
@@ -23,13 +66,14 @@ export const createTestUser = async (userData: {
   email: string;
   name: string;
   token: string;
+  browserName: string;
 }): Promise<number> => {
-  const { email, name, token } = userData;
+  const { email, name, token, browserName } = userData;
 
   // Check if user already exists
-  const existingUser = await getAsync("SELECT id FROM users WHERE email = ?", [
+  const existingUser = (await getAsync("SELECT id FROM users WHERE email = ?", [
     email,
-  ]);
+  ])) as { id: number } | undefined;
 
   if (existingUser) {
     return existingUser.id;
@@ -37,8 +81,8 @@ export const createTestUser = async (userData: {
 
   // Create new user
   const result = await runAsync(
-    "INSERT INTO users (email, name, token) VALUES (?, ?, ?)",
-    [email, name, token],
+    "INSERT INTO users (email, name, token, browser_name) VALUES (?, ?, ?, ?)",
+    [email, name, token, browserName],
   );
 
   return result.lastID;
@@ -104,8 +148,16 @@ export const getUserTabs = async (userId: number) => {
 /**
  * Generates a JWT token for testing
  */
-export const generateTestToken = (userId: number, email: string): string => {
-  return jwt.sign({ userId, email }, process.env.JWT_SECRET || "test-secret", {
-    expiresIn: "1h",
-  });
+export const generateTestToken = (
+  userId: number,
+  email: string,
+  browserName: string,
+): string => {
+  return jwt.sign(
+    { userId, email, browserName },
+    process.env.JWT_SECRET || "test-secret",
+    {
+      expiresIn: "1h",
+    },
+  );
 };

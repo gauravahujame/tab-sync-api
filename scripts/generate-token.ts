@@ -12,6 +12,29 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 const JWT_SECRET =
   process.env.JWT_SECRET || "default-secret-key-change-in-production";
 
+const args = process.argv.slice(2);
+
+if (args.length === 0) {
+  console.error(
+    "Usage: npm run generate-token -- <browser-name> [user-id] [email] [name]",
+  );
+  console.error(
+    "Example: npm run generate-token -- chrome '123' user@example.com 'User Name'",
+  );
+  process.exit(1);
+}
+
+const [browserName, userIdArg, emailArg, nameArg] = args;
+
+if (!browserName || !browserName.trim()) {
+  console.error("Browser name is required to generate a token.");
+  process.exit(1);
+}
+
+const userId = userIdArg?.trim() || "test-user-123";
+const email = emailArg?.trim() || "test@example.com";
+const name = nameArg?.trim() || "Test User";
+
 // Generate a test token that expires in 1 year for testing
 const generateTestToken = () => {
   if (!JWT_SECRET || JWT_SECRET === "change-this-in-production") {
@@ -21,10 +44,12 @@ const generateTestToken = () => {
   }
 
   const payload = {
-    userId: "test-user-123",
+    id: userId,
+    userId,
     // Add any other user-related claims you might need
-    email: "test@example.com",
-    name: "Test User",
+    email,
+    name,
+    browserName,
   };
 
   const token = jwt.sign(payload, JWT_SECRET, {
@@ -43,9 +68,10 @@ const generateTestToken = () => {
 
   console.log("\n📝 Token Details:");
   console.log("=".repeat(50));
-  console.log(`Issued To: ${payload.userId}`);
+  console.log(`Issued To: ${payload.id}`);
   console.log(`Email: ${payload.email}`);
   console.log(`Name: ${payload.name}`);
+  console.log(`Browser: ${payload.browserName}`);
   console.log(`Expires In: 365 days`);
   console.log("=".repeat(50));
 };

@@ -7,7 +7,7 @@ mkdir -p /app/data
 # Run database initialization
 if [ "$NODE_ENV" != "test" ]; then
   echo "Initializing database..."
-  npm run db:init
+  pnpm run db:init
 fi
 
 # Run the main container command

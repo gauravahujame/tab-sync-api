@@ -1,7 +1,9 @@
 import * as dotenv from "dotenv";
 import { z } from "zod";
 
-dotenv.config();
+dotenv.config({
+  quiet: true,
+});
 
 const configSchema = z.object({
   PORT: z.string().regex(/^\d+$/).optional(),

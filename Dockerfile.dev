@@ -1,6 +1,10 @@
 # --- DEVELOPMENT DOCKERFILE ---
-
 FROM node:24-alpine
+
+# Enable Corepack for pnpm
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
 
 WORKDIR /app
 
@@ -8,11 +12,10 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++ bash
 
 # Copy package files
-COPY package*.json ./
-COPY tsconfig*.json ./
+COPY package.json pnpm-lock.yaml tsconfig*.json ./
 
 # Install all dependencies (including devDeps)
-RUN npm install
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 
 # Copy rest of the source code
 COPY . .
@@ -27,4 +30,4 @@ ENV NODE_ENV=development
 ENV CHOKIDAR_USEPOLLING=1
 
 # Run the dev server with hot reload
-CMD ["npm", "run", "dev"]
+CMD ["pnpm", "run", "dev"]

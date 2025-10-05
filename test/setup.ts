@@ -1,7 +1,7 @@
 import { config } from "dotenv";
-import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
 import process from "process";
+import { fileURLToPath } from "url";
 
 // Load environment variables from .env.test file
 const __filename = fileURLToPath(import.meta.url);
@@ -9,6 +9,8 @@ const __dirname = dirname(__filename);
 
 config({
   path: resolve(__dirname, "../.env.test"),
+  debug: false,
+  quiet: true,
 });
 
 // Set test environment variables

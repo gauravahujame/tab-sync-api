@@ -3,26 +3,24 @@ import {
   clearDatabase,
   createTestUser,
   createTestTabs,
+  generateTestToken,
+  getAsync,
 } from "../utils/test-utils.js";
 import { createTestClient } from "../utils/test-client.js";
-import { db } from "../../src/db.js";
-import { promisify } from "util";
-
-const getAsync = promisify(db.get.bind(db));
 
 describe("Tabs API", () => {
   let testUserId: number;
-  let testToken: string;
   const testUser = {
     email: "tabs-test@example.com",
     name: "Tabs Test User",
     token: "test-token-456",
+    browserName: "test-browser",
   };
 
   beforeAll(async () => {
     // Create a test user
     testUserId = await createTestUser(testUser);
-    testToken = `test-token-${testUserId}`;
+    generateTestToken(testUserId, testUser.email, testUser.browserName);
   });
 
   afterAll(async () => {
@@ -199,9 +197,10 @@ describe("Tabs API", () => {
       expect(response.body).toHaveProperty("success", true);
 
       // Verify the tab was actually deleted
-      const tab = await getAsync("SELECT * FROM tabs WHERE id = ?", [
-        tabIdToDelete,
-      ]);
+      const tab = await getAsync<{ id: number }>(
+        "SELECT * FROM tabs WHERE id = ?",
+        [tabIdToDelete],
+      );
       expect(tab).toBeUndefined();
     });
 
@@ -220,6 +219,7 @@ describe("Tabs API", () => {
         email: "other@example.com",
         name: "Other User",
         token: "other-token",
+        browserName: "other-browser",
       };
       const otherUserId = await createTestUser(otherUser);
 

@@ -1,45 +1,52 @@
 # Build stage
-FROM node:24-alpine AS production
+FROM node:24-alpine AS base
 
-# Set the working directory
+# Enable Corepack for pnpm
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+# Production dependencies stage
+FROM base AS prod-deps
+
 WORKDIR /app
 
-# Copy package files and configs
-COPY package*.json ./
-COPY tsconfig*.json ./
+COPY pnpm-lock.yaml ./
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm fetch --frozen-lockfile
 
-# Install all dependencies (including devDependencies)
-RUN npm ci
+COPY package.json ./
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --prod
 
-# Copy the rest of the application
+# Build stage
+FROM base AS build
+
+WORKDIR /app
+
+COPY pnpm-lock.yaml ./
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm fetch --frozen-lockfile
+
+COPY package.json tsconfig*.json ./
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
+
 COPY . .
-
-# Build the application
-RUN npm run build
-
-# Remove devDependencies
-RUN npm prune --production
+RUN pnpm run build
 
 # Production stage
-FROM node:24-alpine
+FROM base AS production
 
 # Install tini for better signal handling
 RUN apk add --no-cache tini
 
-# Set the working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy production dependencies from prod-deps stage
+COPY --from=prod-deps /app/node_modules ./node_modules
 
-# Install production dependencies only
-RUN npm ci --only=production
-
-# Copy built application from builder
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/scripts ./scripts
-COPY --from=builder /app/tsconfig*.json ./
+# Copy built application from build stage
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/scripts ./scripts
+COPY --from=build /app/tsconfig*.json ./
+COPY --from=build /app/package.json ./
 
 # Copy and set up entrypoint
 COPY docker-entrypoint.sh /usr/local/bin/

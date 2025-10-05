@@ -76,11 +76,38 @@ Local or Docker:
 
 ## 👩‍💻 Scripts & Utilities
 
-All scripts can be run locally or inside Docker:
-- Create user:
-  Local: `npx ts-node scripts/user-create.ts <email> <password> [--admin]`
-  Docker: `docker compose exec app npx ts-node scripts/user-create.ts <email> <password> [--admin]`
-- List users, generate JWT: Refer to previous commands in the scripts section.
+### Automated Database Initialization
+
+The server **automatically initializes the database** on startup (dev, prod, all modes):
+- Checks if database exists; creates it if missing
+- Verifies if users exist; auto-generates a default user if none found
+- Displays the default user credentials in the console **before** Express server starts
+- Ensures `browser_name` field is properly set for all users
+
+**No manual database setup required!** Just run `npm run dev` or `npm start`.
+
+### Available Scripts
+
+All scripts respect the `browser_name` field in the user database:
+
+- **`npm run user:create`** - Interactive user creation with browser_name prompt
+- **`npm run user:list`** - List all users with their browser names
+- **`npm run token:generate -- <browser-name> [user-id] [email] [name]`** - Generate JWT token
+- **`npm run db:init`** - Manually initialize database and create default user
+- **`npm run db:reset`** - Delete and reinitialize database
+- **`npm run db:clean`** - Remove all database and log files
+- **`npm run setup`** - Full setup: install dependencies and initialize database
+
+### Docker Usage
+
+Run scripts inside containers:
+```bash
+# Development container
+docker compose -f docker-compose.dev.yml exec app npm run user:create
+
+# Production container  
+docker compose exec app npm run user:list
+```
 
 ## 💡 Notes
 
