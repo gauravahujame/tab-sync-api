@@ -1,25 +1,25 @@
-import cors from "cors";
-import express from "express";
-import rateLimit from "express-rate-limit";
-import helmet from "helmet";
-import "module-alias/register.js";
-import morgan from "morgan";
-import path from "path";
-import { config } from "./config.js";
-import { authMiddleware } from "./middlewares/auth.js";
-import { errorHandler } from "./middlewares/errorHandler.js";
-import { authRouter } from "./routes/auth.js";
-import { tabsRouter } from "./routes/tabs.js";
-import logger, { stream } from "./utils/logger.js";
-import { initializeStartup } from "./utils/startup.js";
+import cors from 'cors';
+import express from 'express';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import 'module-alias/register.js';
+import morgan from 'morgan';
+import path from 'path';
+import { config } from './config.js';
+import { authMiddleware } from './middlewares/auth.js';
+import { errorHandler } from './middlewares/errorHandler.js';
+import { authRouter } from './routes/auth.js';
+import { tabsRouter } from './routes/tabs.js';
+import logger, { stream } from './utils/logger.js';
+import { initializeStartup } from './utils/startup.js';
 
 export const app = express();
 
 // Security headers - Configure helmet to allow CORS
 app.use(
   helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
   }),
 );
 
@@ -32,12 +32,12 @@ const corsOptions: cors.CorsOptions = {
     }
 
     // Allow chrome-extension:// origins
-    if (origin.startsWith("chrome-extension://")) {
+    if (origin.startsWith('chrome-extension://')) {
       return callback(null, true);
     }
 
     // Allow moz-extension:// origins (Firefox)
-    if (origin.startsWith("moz-extension://")) {
+    if (origin.startsWith('moz-extension://')) {
       return callback(null, true);
     }
 
@@ -45,7 +45,7 @@ const corsOptions: cors.CorsOptions = {
     if (
       config.allowedOrigins.length === 0 ||
       config.allowedOrigins.includes(origin) ||
-      config.allowedOrigins.includes("*")
+      config.allowedOrigins.includes('*')
     ) {
       return callback(null, true);
     }
@@ -53,24 +53,24 @@ const corsOptions: cors.CorsOptions = {
     // In development mode, allow localhost and local IPs
     if (config.isDevelopment) {
       if (
-        origin.includes("localhost") ||
-        origin.includes("127.0.0.1") ||
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1') ||
         /^https?:\/\/(10|172\.16|192\.168|100\.64)\./.test(origin)
       ) {
         return callback(null, true);
       }
     }
 
-    callback(new Error("Not allowed by CORS"));
+    callback(new Error('Not allowed by CORS'));
   },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "X-Requested-With",
-    "Accept",
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
   ],
-  exposedHeaders: ["Content-Range", "X-Content-Range"],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
   credentials: true,
   maxAge: 86400, // 24 hours
   preflightContinue: false,
@@ -82,10 +82,10 @@ app.use(cors(corsOptions));
 // Handle preflight requests explicitly
 // app.options("*", cors(corsOptions));
 // Handle preflight requests explicitly - Express 5 compatible
-app.options("/*splat", cors(corsOptions)); // ✅ Changed from "*"
+app.options('/*splat', cors(corsOptions)); // ✅ Changed from "*"
 
 // HTTP request logging
-app.use(morgan("combined", { stream }));
+app.use(morgan('combined', { stream }));
 
 // Rate limiting
 app.use(
@@ -105,27 +105,40 @@ app.use(
     },
     message: {
       success: false,
-      error: "Too many requests, please try again later.",
+      error: 'Too many requests, please try again later.',
     },
   }),
 );
 
 // Parse JSON request bodies
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: '1mb' }));
 
 // Apply authentication middleware
 app.use(authMiddleware);
 
 // Health check endpoint (exempt from auth)
-app.get("/api/v1/health", (_req: express.Request, res: express.Response) => {
-  res.json({ status: "ok" });
+app.get('/api/v1/health', (_req: express.Request, res: express.Response) => {
+  res.json({ status: 'ok' });
 });
 
 // API Routes
-app.use("/api/v1/tabs", tabsRouter);
-app.use("/api/v1/auth", authRouter);
+app.use('/api/v1/tabs', tabsRouter);
+app.use('/api/v1/auth', authRouter);
 
+// Error handling middleware
 app.use(errorHandler);
+
+const domain = process.env.DOMAIN?.trim();
+
+let trustProxySetting;
+
+if (domain && domain.length > 0) {
+  trustProxySetting = domain;
+} else {
+  trustProxySetting = false;
+}
+
+app.set('trust proxy', trustProxySetting);
 
 // Initialize database and create default user before starting server
 // This ensures console output is visible before Express takes over
@@ -137,7 +150,7 @@ async function startServer() {
     await initializeStartup();
 
     // Now start the Express server
-    const host = "0.0.0.0";
+    const host = '0.0.0.0';
     server = app.listen(config.port, host, () => {
       const accessUrl = `http://localhost:${config.port}`;
       logger.info(
@@ -148,15 +161,15 @@ async function startServer() {
       logger.info(`Logs directory: ${path.join(process.cwd(), config.logDir)}`);
     });
   } catch (error) {
-    logger.error("Failed to start server:", error);
+    logger.error('Failed to start server:', error);
     process.exit(1);
   }
 }
 
 // Start the server
-console.log("🚀 Starting Tab Sync API server...");
+console.log('🚀 Starting Tab Sync API server...');
 startServer().catch((error) => {
-  console.error("❌ Failed to start server:", error);
+  console.error('❌ Failed to start server:', error);
   process.exit(1);
 });
 
@@ -164,7 +177,7 @@ startServer().catch((error) => {
 const shutdown = (signal: string) => {
   logger.info(`Received ${signal}, shutting down.`);
   server.close(async () => {
-    logger.info("HTTP server closed.");
+    logger.info('HTTP server closed.');
 
     // Note: Database connection is managed by the db module
     // and will be closed automatically when the process exits
@@ -173,7 +186,7 @@ const shutdown = (signal: string) => {
   });
 };
 
-process.on("SIGINT", () => shutdown("SIGINT"));
-process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 
-export * from "./db.js";
+export * from './db.js';
