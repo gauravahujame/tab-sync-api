@@ -1,8 +1,8 @@
+import * as jwt from "jsonwebtoken";
 import sqlite3 from "sqlite3";
 import { promisify } from "util";
-import jwt from "jsonwebtoken";
-import logger from "../src/utils/logger";
-import { config } from "../src/config";
+import { config } from "../src/config.js";
+import logger from "../src/utils/logger.js";
 
 async function initializeDatabase() {
   try {
