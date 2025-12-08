@@ -50,6 +50,7 @@ export interface BaseRequest {
  */
 export interface AuthRequest extends BaseRequest {
   user?: User;
+  instanceId?: string;
 }
 
 /**

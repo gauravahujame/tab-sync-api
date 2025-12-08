@@ -1,49 +1,56 @@
-# Dependencies
+# .dockerignore
 node_modules
 npm-debug.log
-Dockerfile
-.dockerignore
-test/
-docs/
-*.md
-.git
+yarn-error.log
+pnpm-debug.log
+.pnpm-store
 
-# Build output
 dist
 build
+coverage
+*.tsbuildinfo
 
-# Environment files
+test
+tests
+*.test.ts
+*.spec.ts
+__tests__
+.nyc_output
+
+.git
+.gitignore
+.github
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
 .env
 .env.*
 !.env.example
 
-# Logs
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+docs
+
+.gitlab-ci.yml
+.travis.yml
+.circleci
+Jenkinsfile
+
+Dockerfile*
+docker-compose*.yml
+# Don't ignore pnpm-workspace.yaml - needed for native builds
+# .dockerignore
+
 logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+data
+*.db
+*.sqlite
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Data and cache
-data/*
-!.gitkeep
-tabs.db
-
-# Test coverage
-coverage
-.nyc_output
-
-# Misc
-.cache
-.temp
+Thumbs.db

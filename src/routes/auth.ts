@@ -1,6 +1,8 @@
 import express from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
+import { db } from "../db.js";
+import logger from "../utils/logger.js";
 
 export const authRouter = express.Router();
 
@@ -45,7 +47,7 @@ export const authRouter = express.Router();
  *                   type: string
  *                   example: "Invalid or expired token"
  */
-authRouter.get("/validate", (req, res) => {
+authRouter.get("/validate", async (req, res) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -58,29 +60,62 @@ authRouter.get("/validate", (req, res) => {
   const token = authHeader.split(" ")[1];
 
   try {
-    const decoded = jwt.verify(token, config.jwtSecret);
+    const decoded = jwt.verify(token, config.jwtSecret) as jwt.JwtPayload;
 
     // Return token information without sensitive data
-    const { iat, exp, ...user } = decoded as jwt.JwtPayload;
+    const { iat, exp, ...userInfo } = decoded;
 
     // Ensure the token contains necessary user information
-    if (!user.id) {
+    if (!userInfo.id) {
       return res.status(401).json({
         valid: false,
         error: "Invalid token format: missing user ID",
       });
     }
 
-    res.json({
-      valid: true,
-      user: {
-        id: user.id,
-        name: user.name || "",
-        email: user.email || "",
-        expiresIn: exp
-          ? Math.floor(exp - Date.now() / 1000) + " seconds"
-          : "never",
-      },
+    // âœ" NEW: Check if user still exists in database
+    return new Promise<void>((resolve) => {
+      db.get(
+        'SELECT id, email, name FROM users WHERE id = ? LIMIT 1',
+        [userInfo.id],
+        (err: any, user: any) => {
+          if (err) {
+            logger.error('[AUTH:VALIDATE] Database error', {
+              error: err.message,
+              userId: userInfo.id,
+            });
+            res.status(500).json({
+              valid: false,
+              error: "Database error",
+            });
+            return resolve();
+          }
+
+          if (!user) {
+            logger.warn('[AUTH:VALIDATE] User not found', {
+              userId: userInfo.id,
+            });
+            res.status(401).json({
+              valid: false,
+              error: "User not found or has been deleted",
+            });
+            return resolve();
+          }
+
+          res.json({
+            valid: true,
+            user: {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              expiresIn: exp
+                ? Math.floor(exp - Date.now() / 1000) + " seconds"
+                : "never",
+            },
+          });
+          resolve();
+        },
+      );
     });
   } catch (error) {
     let errorMessage = "Invalid token";
@@ -90,6 +125,10 @@ authRouter.get("/validate", (req, res) => {
     } else if (error instanceof jwt.JsonWebTokenError) {
       errorMessage = "Invalid token";
     }
+
+    logger.warn('[AUTH:VALIDATE] Token verification failed', {
+      error: errorMessage,
+    });
 
     return res.status(401).json({
       valid: false,

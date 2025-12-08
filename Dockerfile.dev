@@ -1,33 +1,49 @@
-# --- DEVELOPMENT DOCKERFILE ---
+# Development Dockerfile
 FROM node:24-alpine
 
-# Enable Corepack for pnpm
+# Install build dependencies
+RUN apk add --no-cache \
+  python3 \
+  make \
+  g++ \
+  bash \
+  sqlite
+
+# Enable Corepack and pre-activate pnpm
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+RUN corepack enable && \
+  corepack prepare pnpm@10.22.0 --activate
 
 WORKDIR /app
 
-# Install build dependencies and dev tools
-RUN apk add --no-cache python3 make g++ bash
+# Copy pnpm-workspace.yaml to allow building sqlite3
+COPY pnpm-workspace.yaml ./
 
-# Copy package files
-COPY package.json pnpm-lock.yaml tsconfig*.json ./
+# Copy only lockfile first for better caching
+COPY pnpm-lock.yaml ./
 
-# Install all dependencies (including devDeps)
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
+# Fetch packages using BuildKit cache mount
+RUN --mount=type=cache,id=pnpm-dev,target=/pnpm/store \
+  pnpm fetch
 
-# Copy rest of the source code
+# Copy package files and tsconfig
+COPY package.json tsconfig*.json ./
+
+# Install all dependencies
+RUN --mount=type=cache,id=pnpm-dev,target=/pnpm/store \
+  pnpm install --offline --frozen-lockfile
+
+# Copy source code (this layer invalidates frequently)
 COPY . .
 
-# Expose app port for dev server and debugging tools
-EXPOSE 3000
+# Expose ports for dev server and debugging
+EXPOSE 3000 9229
 
-# Useful environment overrides
-ENV NODE_ENV=development
-
-# Enable file system polling for hot reload in Docker
-ENV CHOKIDAR_USEPOLLING=1
+# Development environment variables
+ENV NODE_ENV=development \
+  CHOKIDAR_USEPOLLING=1 \
+  NODE_OPTIONS="--max-old-space-size=512"
 
 # Run the dev server with hot reload
 CMD ["pnpm", "run", "dev"]

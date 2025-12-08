@@ -8,7 +8,11 @@ import path from 'path';
 import { config } from './config.js';
 import { authMiddleware } from './middlewares/auth.js';
 import { errorHandler } from './middlewares/errorHandler.js';
-import { authRouter } from './routes/auth.js';
+import { instanceValidationMiddleware } from './middlewares/instanceValidation.js';
+import authRouter from './routes/auth.js';
+import { eventsRouter } from './routes/events.js';
+import { sessionsRouter } from './routes/sessions.js';
+import { syncRouter } from './routes/sync.js';
 import { tabsRouter } from './routes/tabs.js';
 import logger, { stream } from './utils/logger.js';
 import { initializeStartup } from './utils/startup.js';
@@ -69,6 +73,7 @@ const corsOptions: cors.CorsOptions = {
     'Authorization',
     'X-Requested-With',
     'Accept',
+    'X-Instance-ID',
   ],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   credentials: true,
@@ -115,6 +120,7 @@ app.use(express.json({ limit: '1mb' }));
 
 // Apply authentication middleware
 app.use(authMiddleware);
+app.use(instanceValidationMiddleware);
 
 // Health check endpoint (exempt from auth)
 app.get('/api/v1/health', (_req: express.Request, res: express.Response) => {
@@ -124,6 +130,9 @@ app.get('/api/v1/health', (_req: express.Request, res: express.Response) => {
 // API Routes
 app.use('/api/v1/tabs', tabsRouter);
 app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/sync', syncRouter);
+app.use('/api/v1/sessions', sessionsRouter);
+app.use('/api/v1/events', eventsRouter);
 
 // Error handling middleware
 app.use(errorHandler);

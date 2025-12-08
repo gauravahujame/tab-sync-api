@@ -1,27 +1,34 @@
+version: "3.8"
+
 services:
   app:
     build:
       context: .
       target: production
+      dockerfile: Dockerfile
+    image: tab-sync-api:latest
     container_name: tab-sync-api
     restart: unless-stopped
     ports:
-      - "${PORT:-3000}:${PORT:-3000}"
+      - "${PORT:-3000}:3000"
     volumes:
-      - ./data:/app/data
+      - type: bind
+        source: ./data
+        target: /app/data
     environment:
-      - NODE_ENV=${NODE_ENV:-production}
-      - PORT=${PORT:-3000}
-      - DOMAIN=${DOMAIN}
-      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
-      - DATABASE_PATH=/app/data/tabs.db
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - LOG_DIR=/app/data/logs
-      - LOG_MAX_SIZE=${LOG_MAX_SIZE:-20m}
-      - LOG_MAX_FILES=${LOG_MAX_FILES:-30d}
-      - LOG_ERROR_MAX_FILES=${LOG_ERROR_MAX_FILES:-60d}
-      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-60000}
-      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-60}
+      # Force production mode - don't read from .env
+      NODE_ENV: production
+      PORT: ${PORT:-3000}
+      DOMAIN: ${DOMAIN}
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
+      DATABASE_PATH: /app/data/tabs.db
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_DIR: /app/data/logs
+      LOG_MAX_SIZE: ${LOG_MAX_SIZE:-20m}
+      LOG_MAX_FILES: ${LOG_MAX_FILES:-30d}
+      LOG_ERROR_MAX_FILES: ${LOG_ERROR_MAX_FILES:-60d}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-60}
     healthcheck:
       test:
         [
@@ -30,14 +37,20 @@ services:
           "--no-verbose",
           "--tries=1",
           "--spider",
-          "http://localhost:${PORT:-3000}/api/v1/health",
+          "http://localhost:3000/api/v1/health",
         ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
+        max-size: 10m
         max-file: "3"
+    networks:
+      - tab-sync-network
+
+networks:
+  tab-sync-network:
+    driver: bridge

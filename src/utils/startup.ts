@@ -23,6 +23,17 @@ export async function initializeStartup(): Promise<void> {
     await schemaReady;
     console.log("✅ Schema is ready!");
 
+    // Run sync migrations
+    console.log("⏳ Running sync migrations...");
+    const { runSyncMigrations, verifySyncTables } = await import("../db/migrations.js");
+    await runSyncMigrations(db);
+    const syncTablesOk = await verifySyncTables(db);
+    if (syncTablesOk) {
+      console.log("✅ Sync migrations verified successfully");
+    } else {
+      console.warn("⚠️  Some sync tables may be missing");
+    }
+
     // Helper functions for database operations
     const run = (sql: string, params: unknown[] = []) =>
       new Promise<void>((resolve, reject) => {

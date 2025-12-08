@@ -1,11 +1,12 @@
-import { Response, NextFunction } from "express";
-import { authMiddleware, AuthRequest } from "../../../src/middlewares/auth";
+import { NextFunction, Response } from "express";
+import { db } from "../../../src/db";
+import { authMiddleware } from "../../../src/middlewares/auth";
+import { AuthRequest } from "../../../src/types";
 import {
+  mockNext,
   mockRequest,
   mockResponse,
-  mockNext,
 } from "../../helpers/test.helpers";
-import { db } from "../../../src/db";
 
 jest.mock("jsonwebtoken", () => ({
   verify: jest.fn((token, secret, callback) => {

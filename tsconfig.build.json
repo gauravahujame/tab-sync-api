@@ -1,13 +1,26 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": ".",
     "noEmit": false,
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext"
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "skipLibCheck": true
   },
+  "include": [
+    "src/**/*",
+    "scripts/init-db.ts"
+  ],
   "exclude": [
     "node_modules",
+    "dist",
     "**/*.test.ts",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "test/**/*",
+    "scripts/user-create.ts",
+    "scripts/user-list.ts",
+    "scripts/generate-token.ts"
   ]
 }

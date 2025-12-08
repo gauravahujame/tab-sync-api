@@ -1,21 +1,45 @@
 import express from "express";
-import type { AuthRequest } from "../types/index.js";
-import { db } from "../db.js";
 import { z } from "zod";
+import { db } from "../db.js";
+import type { AuthRequest } from "../types/index.js";
 import logger from "../utils/logger.js";
 
 export const tabsRouter = express.Router();
 
-// Schema for a single tab
+// Schema for mutedInfo object
+const mutedInfoSchema = z
+  .object({
+    muted: z.boolean(),
+    reason: z.enum(["user", "capture", "extension"]).optional(),
+    extensionId: z.string().optional(),
+  })
+  .optional();
+
+// Schema for a single tab with all Chrome Tab API fields
 const tabSchema = z.object({
   tabId: z.number().optional(),
   url: z.string().url({ message: "Must be a valid URL" }),
   title: z.string().optional(),
   windowId: z.number().min(0, { message: "Window ID is required" }).default(0),
-  openerTabId: z.number().nullable().default(null),
-  lastAccessed: z.number().optional(),
-  incognito: z.boolean().default(false),
+  index: z.number().optional(),
+  active: z.boolean().optional(),
+  highlighted: z.boolean().optional(),
+  pinned: z.boolean().optional(),
+  audible: z.boolean().optional(),
+  mutedInfo: mutedInfoSchema,
+  discarded: z.boolean().optional(),
+  autoDiscardable: z.boolean().optional(),
+  frozen: z.boolean().optional(),
   groupId: z.number().default(-1),
+  incognito: z.boolean().default(false),
+  favIconUrl: z.string().optional(),
+  pendingUrl: z.string().optional(),
+  openerTabId: z.number().nullable().default(null),
+  sessionId: z.string().optional(),
+  lastAccessed: z.number().optional(),
+  status: z.enum(["unloaded", "loading", "complete"]).optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
   browserName: z.string().optional(),
 });
 
@@ -45,10 +69,25 @@ tabsRouter.post("/", (req: AuthRequest, res, next) => {
       url,
       title,
       windowId,
-      openerTabId,
-      lastAccessed,
-      incognito,
+      index,
+      active,
+      highlighted,
+      pinned,
+      audible,
+      mutedInfo,
+      discarded,
+      autoDiscardable,
+      frozen,
       groupId,
+      incognito,
+      favIconUrl,
+      pendingUrl,
+      openerTabId,
+      sessionId,
+      lastAccessed,
+      status,
+      width,
+      height,
       browserName,
     } = parseResult.data;
 
@@ -62,22 +101,58 @@ tabsRouter.post("/", (req: AuthRequest, res, next) => {
     const userId = req.user.id;
 
     db.run(
-      `INSERT INTO tabs (client_tab_id, url, title, window_id, opener_tab_id, last_accessed, incognito, group_id, browser_name, user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tabs (
+        client_tab_id, url, title, window_id, tab_index, active, highlighted, pinned,
+        audible, muted_info, discarded, auto_discardable, frozen, group_id, incognito,
+        fav_icon_url, pending_url, opener_tab_id, session_id, last_accessed, status,
+        width, height, browser_name, user_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         tabId || null,
         url,
         title || null,
         windowId,
-        openerTabId ?? null, // Use null coalescing to handle undefined/undefined
-        lastAccessed ?? null,
-        incognito ? 1 : 0,
+        index ?? null,
+        active ? 1 : 0,
+        highlighted ? 1 : 0,
+        pinned ? 1 : 0,
+        audible ? 1 : 0,
+        mutedInfo ? JSON.stringify(mutedInfo) : null,
+        discarded ? 1 : 0,
+        autoDiscardable !== undefined ? (autoDiscardable ? 1 : 0) : 1,
+        frozen ? 1 : 0,
         groupId,
+        incognito ? 1 : 0,
+        favIconUrl || null,
+        pendingUrl || null,
+        openerTabId ?? null,
+        sessionId || null,
+        lastAccessed ?? null,
+        status || null,
+        width ?? null,
+        height ?? null,
         browserName || null,
         userId,
       ],
       function (err) {
         if (err) {
+          // Handle duplicate constraint errors gracefully
+          if (
+            err.message.includes('SQLITE_CONSTRAINT') &&
+            err.message.includes('UNIQUE')
+          ) {
+            logger.debug("Duplicate tab detected, skipping insert:", {
+              url,
+              windowId,
+              tabId: tabId || null,
+            });
+            return res.json({
+              success: true,
+              duplicate: true,
+              message: "Tab already exists",
+            });
+          }
+
           logger.error("Error inserting tab:", {
             error: err.message,
             tab: parseResult.data,
@@ -85,7 +160,7 @@ tabsRouter.post("/", (req: AuthRequest, res, next) => {
           return next(err);
         }
 
-        res.json({
+        res.status(201).json({
           success: true,
           id: this.lastID || null,
         });
@@ -99,12 +174,42 @@ tabsRouter.post("/", (req: AuthRequest, res, next) => {
 // New batch tabs endpoint
 tabsRouter.post("/batch", (req: AuthRequest, res, next) => {
   try {
-    const parseResult = batchTabsSchema.safeParse(req.body);
+    // Filter out empty objects and objects without required fields before validation
+    const filteredBody = {
+      ...req.body,
+      tabs: Array.isArray(req.body.tabs)
+        ? req.body.tabs.filter((tab: any) => {
+            // Filter out empty objects or objects without url
+            return (
+              tab &&
+              typeof tab === "object" &&
+              Object.keys(tab).length > 0 &&
+              tab.url
+            );
+          })
+        : req.body.tabs,
+    };
+
+    // If all tabs were filtered out, return success with empty result
+    if (!filteredBody.tabs || filteredBody.tabs.length === 0) {
+      return res.json({
+        success: true,
+        stats: {
+          total: 0,
+          stored: 0,
+          duplicates: 0,
+          errors: 0,
+        },
+        message: 'No valid tabs to process',
+      });
+    }
+
+    const parseResult = batchTabsSchema.safeParse(filteredBody);
 
     if (!parseResult.success) {
       return res.status(400).json({
         success: false,
-        error: "Invalid batch request",
+        error: 'Invalid batch request',
         details: parseResult.error.format(),
       });
     }
@@ -115,7 +220,7 @@ tabsRouter.post("/batch", (req: AuthRequest, res, next) => {
     if (!userId) {
       return res.status(401).json({
         success: false,
-        error: "User authentication required",
+        error: 'User authentication required',
       });
     }
 
@@ -156,9 +261,11 @@ tabsRouter.post("/batch", (req: AuthRequest, res, next) => {
 
       const insertStmt = db.prepare(
         `INSERT INTO tabs (
-          client_tab_id, url, title, window_id,
-          opener_tab_id, last_accessed, incognito, group_id, browser_name, user_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          client_tab_id, url, title, window_id, tab_index, active, highlighted, pinned,
+          audible, muted_info, discarded, auto_discardable, frozen, group_id, incognito,
+          fav_icon_url, pending_url, opener_tab_id, session_id, last_accessed, status,
+          width, height, browser_name, user_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       );
 
       // Prepare statement to find existing tabs
@@ -230,10 +337,25 @@ tabsRouter.post("/batch", (req: AuthRequest, res, next) => {
             url,
             title,
             windowId,
-            openerTabId,
-            lastAccessed,
-            incognito = false,
+            index: tabIndex,
+            active,
+            highlighted,
+            pinned,
+            audible,
+            mutedInfo,
+            discarded,
+            autoDiscardable,
+            frozen,
             groupId = -1,
+            incognito = false,
+            favIconUrl,
+            pendingUrl,
+            openerTabId,
+            sessionId,
+            lastAccessed,
+            status,
+            width,
+            height,
             browserName = null,
           } = tab;
 
@@ -277,10 +399,25 @@ tabsRouter.post("/batch", (req: AuthRequest, res, next) => {
                 url,
                 title || null,
                 windowId,
-                openerTabId ?? null,
-                lastAccessed ?? null,
-                incognito ? 1 : 0,
+                tabIndex ?? null,
+                active ? 1 : 0,
+                highlighted ? 1 : 0,
+                pinned ? 1 : 0,
+                audible ? 1 : 0,
+                mutedInfo ? JSON.stringify(mutedInfo) : null,
+                discarded ? 1 : 0,
+                autoDiscardable !== undefined ? (autoDiscardable ? 1 : 0) : 1,
+                frozen ? 1 : 0,
                 groupId,
+                incognito ? 1 : 0,
+                favIconUrl || null,
+                pendingUrl || null,
+                openerTabId ?? null,
+                sessionId || null,
+                lastAccessed ?? null,
+                status || null,
+                width ?? null,
+                height ?? null,
                 browserName,
                 userId,
                 function (this: { changes: number }, insertErr: Error | null) {

@@ -66,4 +66,13 @@ export const config = {
   logMaxSize: env.LOG_MAX_SIZE || "20m",
   logMaxFiles: env.LOG_MAX_FILES || "30d",
   logErrorMaxFiles: env.LOG_ERROR_MAX_FILES || "60d",
+
+  // Sync configuration
+  sync: {
+    cleanupDays: 90, // Delete events older than 90 days
+    maxBatchSize: 1000, // Max events per sync batch
+    requestTimeoutMs: 30000, // 30 seconds
+    eventRetentionDays: 365, // Keep events for 1 year
+    sessionStorageLimitMb: 100, // Max storage per session
+  },
 };

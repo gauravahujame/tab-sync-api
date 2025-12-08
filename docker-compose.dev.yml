@@ -1,33 +1,55 @@
+version: "3.8"
+
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile.dev
+    image: tab-sync-api-dev:latest
     container_name: tab-sync-api-dev
     ports:
       - "3000:3000"
+      - "9229:9229"
     volumes:
-      - .:/app # Mount source code for hot reload
-      - /app/node_modules # Prevent host node_modules from overriding container
-      - ./data:/app/data
+      - type: bind
+        source: .
+        target: /app
+      - type: volume
+        target: /app/node_modules
+      - type: volume
+        source: pnpm-store
+        target: /pnpm/store
+      - type: bind
+        source: ./data
+        target: /app/data
     environment:
-      - NODE_ENV=development
-      - PORT=3000
-      - DOMAIN=${DOMAIN}
-      - JWT_SECRET=dev-secret
-      - DATABASE_PATH=/app/data/tabs.db
-      - LOG_LEVEL=debug
-      - LOG_DIR=/app/data/logs
-      - LOG_MAX_SIZE=20m
-      - LOG_MAX_FILES=30d
-      - LOG_ERROR_MAX_FILES=60d
-      - RATE_LIMIT_WINDOW_MS=60000
-      - RATE_LIMIT_MAX_REQUESTS=300
-      - CHOKIDAR_USEPOLLING=1 # Enable hot reload in Docker
+      NODE_ENV: development
+      PORT: 3000
+      DOMAIN: ${DOMAIN}
+      JWT_SECRET: dev-secret-change-in-production
+      DATABASE_PATH: /app/data/tabs.db
+      LOG_LEVEL: debug
+      LOG_DIR: /app/data/logs
+      LOG_MAX_SIZE: 20m
+      LOG_MAX_FILES: 30d
+      LOG_ERROR_MAX_FILES: 60d
+      RATE_LIMIT_WINDOW_MS: 60000
+      RATE_LIMIT_MAX_REQUESTS: 300
+      CHOKIDAR_USEPOLLING: 1
     command: pnpm run dev
     restart: unless-stopped
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
+        max-size: 10m
         max-file: "3"
+    networks:
+      - tab-sync-network
+
+volumes:
+  pnpm-store:
+    driver: local
+
+networks:
+  tab-sync-network:
+    driver: bridge
