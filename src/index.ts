@@ -9,6 +9,7 @@ import { config } from './config.js';
 import { authMiddleware } from './middlewares/auth.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { instanceValidationMiddleware } from './middlewares/instanceValidation.js';
+import { adminRouter } from './routes/admin.js';
 import authRouter from './routes/auth.js';
 import { eventsRouter } from './routes/events.js';
 import { sessionsRouter } from './routes/sessions.js';
@@ -117,6 +118,9 @@ app.use(
 
 // Parse JSON request bodies
 app.use(express.json({ limit: '1mb' }));
+
+// Admin routes (no auth required)
+app.use('/api/v1/admin', adminRouter);
 
 // Apply authentication middleware
 app.use(authMiddleware);
