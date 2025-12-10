@@ -25,7 +25,7 @@ export class SyncService {
   private dbGet: (sql: string, ...params: any[]) => Promise<any>;
   private dbAll: (sql: string, ...params: any[]) => Promise<any[]>;
 
-  constructor(private db: Database) {
+  constructor(db: Database) {
     // Promisify database methods
     this.dbRun = promisify(db.run.bind(db));
     this.dbGet = promisify(db.get.bind(db));

@@ -10,7 +10,7 @@ const eventService = new EventService(db);
 
 // Promisify db methods
 const dbAll = promisify(db.all.bind(db));
-const dbGet = promisify(db.get.bind(db));
+
 
 /**
  * GET /api/v1/admin/users

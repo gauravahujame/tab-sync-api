@@ -7,7 +7,7 @@ export class SessionService {
   private dbGet: (sql: string, ...params: any[]) => Promise<any>;
   private dbAll: (sql: string, ...params: any[]) => Promise<any[]>;
 
-  constructor(private db: Database) {
+  constructor(db: Database) {
     this.dbRun = promisify(db.run.bind(db));
     this.dbGet = promisify(db.get.bind(db));
     this.dbAll = promisify(db.all.bind(db));
