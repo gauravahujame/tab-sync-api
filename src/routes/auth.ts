@@ -1,7 +1,7 @@
 import express from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
-import { db } from "../db.js";
+import { getDb } from "../db.js";
 import logger from "../utils/logger.js";
 
 export const authRouter = express.Router();
@@ -73,50 +73,45 @@ authRouter.get("/validate", async (req, res) => {
       });
     }
 
-    // âœ" NEW: Check if user still exists in database
-    return new Promise<void>((resolve) => {
-      db.get(
+    // Check if user still exists in database
+    try {
+      const db = getDb();
+      const user = await db.get<{ id: number; email: string; name: string }>(
         'SELECT id, email, name FROM users WHERE id = ? LIMIT 1',
         [userInfo.id],
-        (err: any, user: any) => {
-          if (err) {
-            logger.error('[AUTH:VALIDATE] Database error', {
-              error: err.message,
-              userId: userInfo.id,
-            });
-            res.status(500).json({
-              valid: false,
-              error: "Database error",
-            });
-            return resolve();
-          }
-
-          if (!user) {
-            logger.warn('[AUTH:VALIDATE] User not found', {
-              userId: userInfo.id,
-            });
-            res.status(401).json({
-              valid: false,
-              error: "User not found or has been deleted",
-            });
-            return resolve();
-          }
-
-          res.json({
-            valid: true,
-            user: {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-              expiresIn: exp
-                ? Math.floor(exp - Date.now() / 1000) + " seconds"
-                : "never",
-            },
-          });
-          resolve();
-        },
       );
-    });
+
+      if (!user) {
+        logger.warn('[AUTH:VALIDATE] User not found', {
+          userId: userInfo.id,
+        });
+        return res.status(401).json({
+          valid: false,
+          error: "User not found or has been deleted",
+        });
+      }
+
+      return res.json({
+        valid: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          expiresIn: exp
+            ? Math.floor(exp - Date.now() / 1000) + " seconds"
+            : "never",
+        },
+      });
+    } catch (dbErr) {
+      logger.error('[AUTH:VALIDATE] Database error', {
+        error: (dbErr as Error).message,
+        userId: userInfo.id,
+      });
+      return res.status(500).json({
+        valid: false,
+        error: "Database error",
+      });
+    }
   } catch (error) {
     let errorMessage = "Invalid token";
 
@@ -138,3 +133,4 @@ authRouter.get("/validate", async (req, res) => {
 });
 
 export default authRouter;
+

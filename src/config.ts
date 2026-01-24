@@ -22,6 +22,14 @@ const configSchema = z.object({
   LOG_MAX_SIZE: z.string().default("20m"),
   LOG_MAX_FILES: z.string().default("30d"),
   LOG_ERROR_MAX_FILES: z.string().default("60d"),
+
+  // Database configuration
+  DB_TYPE: z.enum(["sqlite", "postgres"]).optional(),
+  DB_HOST: z.string().optional(),
+  DB_PORT: z.string().regex(/^\d+$/).optional(),
+  DB_USERNAME: z.string().optional(),
+  DB_PASSWORD: z.string().optional(),
+  DB_NAME: z.string().optional(),
 });
 
 const parseResult = configSchema.safeParse(process.env);
@@ -32,6 +40,14 @@ if (!parseResult.success) {
 
 const env = parseResult.data;
 
+// Determine database type
+const dbType = (env.DB_TYPE || "sqlite") as "sqlite" | "postgres";
+
+// Validate PostgreSQL config if type is postgres
+if (dbType === "postgres" && !env.DB_NAME) {
+  throw new Error("DB_NAME is required when DB_TYPE is postgres");
+}
+
 export const config = {
   port: env.PORT ? Number(env.PORT) : 3000,
   nodeEnv: env.NODE_ENV || "development",
@@ -39,7 +55,20 @@ export const config = {
   isDevelopment: (env.NODE_ENV || "development") === "development",
   isTest: (env.NODE_ENV || "development") === "test",
 
-  // Paths
+  // Database configuration
+  database: {
+    type: dbType,
+    sqlitePath: env.DATABASE_PATH || "./data/tabs.db",
+    postgres: {
+      host: env.DB_HOST || "localhost",
+      port: env.DB_PORT ? Number(env.DB_PORT) : 5432,
+      username: env.DB_USERNAME || "root",
+      password: env.DB_PASSWORD || "password",
+      database: env.DB_NAME || "tabsync",
+    },
+  },
+
+  // Legacy path (kept for backward compatibility)
   databasePath: env.DATABASE_PATH || "./data/tabs.db",
   logDir: env.LOG_DIR || "./data/logs",
 
@@ -70,9 +99,6 @@ export const config = {
   // Sync configuration
   sync: {
     cleanupDays: 90, // Delete events older than 90 days
-    maxBatchSize: 1000, // Max events per sync batch
-    requestTimeoutMs: 30000, // 30 seconds
-    eventRetentionDays: 365, // Keep events for 1 year
     sessionStorageLimitMb: 100, // Max storage per session
   },
 };

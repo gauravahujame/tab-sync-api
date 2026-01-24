@@ -8,7 +8,7 @@ export async function initializeStartup(): Promise<void> {
     console.log("📊 Starting database initialization...");
 
     // Ensure database directory exists
-    const dbDir = path.dirname(config.databasePath);
+    const dbDir = path.dirname(config.database.sqlitePath);
     if (!fs.existsSync(dbDir)) {
       fs.mkdirSync(dbDir, { recursive: true });
       console.log(`✅ Created database directory: ${dbDir}`);
@@ -16,51 +16,18 @@ export async function initializeStartup(): Promise<void> {
 
     // Dynamically import db INSIDE the function to avoid circular dependency
     console.log("⏳ Importing database module...");
-    const { db, schemaReady } = await import("../db.js");
+    const { getDb, schemaReady } = await import("../db.js");
 
     // Wait for schema to be ready
     console.log("⏳ Waiting for schema to be ready...");
     await schemaReady;
     console.log("✅ Schema is ready!");
 
-    // Run sync migrations
-    console.log("⏳ Running sync migrations...");
-    const { runSyncMigrations, verifySyncTables } = await import("../db/migrations.js");
-    await runSyncMigrations(db);
-    const syncTablesOk = await verifySyncTables(db);
-    if (syncTablesOk) {
-      console.log("✅ Sync migrations verified successfully");
-    } else {
-      console.warn("⚠️  Some sync tables may be missing");
-    }
-
-    // Helper functions for database operations
-    const run = (sql: string, params: unknown[] = []) =>
-      new Promise<void>((resolve, reject) => {
-        db.run(sql, params, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-
-    const get = <T = any>(sql: string, params: unknown[] = []) =>
-      new Promise<T | undefined>((resolve, reject) => {
-        db.get(sql, params, (err: Error | null, row: T) => {
-          if (err) reject(err);
-          else resolve(row);
-        });
-      });
-
-    const all = <T = any>(sql: string, params: unknown[] = []) =>
-      new Promise<T[]>((resolve, reject) => {
-        db.all(sql, params, (err: Error | null, rows: T[]) => {
-          if (err) reject(err);
-          else resolve(rows);
-        });
-      });
+    // Get the database adapter
+    const db = getDb();
 
     try {
-      const userCountRow = await get<{ count: number }>(
+      const userCountRow = await db.get<{ count: number }>(
         "SELECT COUNT(*) as count FROM users",
       );
       const userCount = userCountRow?.count ?? 0;
@@ -80,23 +47,37 @@ export async function initializeStartup(): Promise<void> {
           expiresIn: "365d",
         });
 
-        await run(
+        // Use dialect-aware current timestamp
+        const dialect = db.getDialect();
+        const timestampExpr = dialect === 'sqlite' ? "datetime('now')" : 'NOW()';
+
+        await db.run(
           `INSERT INTO users (email, name, token, browser_name, created_at)
-           VALUES (?, ?, ?, ?, datetime('now'))`,
+           VALUES (?, ?, ?, ?, ${timestampExpr})`,
           [email, name, token, browserName],
         );
 
-        const newUser = await get<{ id: number }>(
-          "SELECT last_insert_rowid() as id",
-        );
-        const userId = newUser!.id;
+        // Get last insert ID (dialect-specific)
+        let userId: number;
+        if (dialect === 'sqlite') {
+          const newUser = await db.get<{ id: number }>(
+            "SELECT last_insert_rowid() as id",
+          );
+          userId = newUser!.id;
+        } else {
+          const newUser = await db.get<{ id: number }>(
+            "SELECT id FROM users WHERE email = ?",
+            [email],
+          );
+          userId = newUser!.id;
+        }
 
         const updatedPayload = { id: userId, name, email, browserName };
         const updatedToken = jwt.sign(updatedPayload, config.jwtSecret, {
           expiresIn: "365d",
         });
 
-        await run(`UPDATE users SET token = ? WHERE id = ?`, [
+        await db.run(`UPDATE users SET token = ? WHERE id = ?`, [
           updatedToken,
           userId,
         ]);
@@ -113,7 +94,7 @@ export async function initializeStartup(): Promise<void> {
         console.log("║  Add to Authorization header: Bearer <token>     ║");
         console.log("╚══════════════════════════════════════════════════╝");
       } else {
-        const existingUsers = await all<{
+        const existingUsers = await db.all<{
           id: number;
           email: string;
           browser_name: string;

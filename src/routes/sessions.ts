@@ -1,12 +1,12 @@
 import express, { Request, Response } from 'express';
 import { z } from 'zod';
-import { db } from '../db.js';
+import { getDb } from '../db.js';
 import { authMiddleware } from '../middlewares/auth.js';
 import { SessionService } from '../services/SessionService.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
-const sessionService = new SessionService(db);
+const sessionService = new SessionService(getDb());
 
 // Validation schemas
 const createSessionSchema = z.object({

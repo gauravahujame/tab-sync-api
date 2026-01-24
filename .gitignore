@@ -203,3 +203,5 @@ dist
 
 .vscode
 .husky
+
+test-results

@@ -1,26 +1,43 @@
-version: "3.8"
+# =============================================================================
+# Tab-Sync-API Production Docker Compose
+# =============================================================================
+# Usage:
+#   docker compose up -d              # Start in background
+#   docker compose up -d --build      # Build and start
+#   docker compose logs -f            # Follow logs
+#   docker compose down               # Stop services
+#
+# With reverse proxy:
+#   docker compose --profile proxy up -d
+# =============================================================================
 
 services:
+  # ---------------------------------------------------------------------------
+  # Main API Service
+  # ---------------------------------------------------------------------------
   app:
     build:
       context: .
       target: production
       dockerfile: Dockerfile
-    image: tab-sync-api:latest
+    image: tab-sync-api:${TAG:-latest}
     container_name: tab-sync-api
     restart: unless-stopped
+
+    # Port mapping - only expose if not using reverse proxy
     ports:
-      - "${PORT:-3000}:3000"
+      - "${HOST_PORT:-3000}:3000"
+
+    # Named volume for persistent data
     volumes:
-      - type: bind
-        source: ./data
-        target: /app/data
+      - tab-sync-data:/app/data
+
+    # Environment configuration
     environment:
-      # Force production mode - don't read from .env
       NODE_ENV: production
-      PORT: ${PORT:-3000}
-      DOMAIN: ${DOMAIN}
-      JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
+      PORT: 3000
+      DOMAIN: ${DOMAIN:-}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       DATABASE_PATH: /app/data/tabs.db
       LOG_LEVEL: ${LOG_LEVEL:-info}
       LOG_DIR: /app/data/logs
@@ -29,28 +46,124 @@ services:
       LOG_ERROR_MAX_FILES: ${LOG_ERROR_MAX_FILES:-60d}
       RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
       RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-60}
+      TZ: ${TZ:-UTC}
+      # PostgreSQL (optional)
+      DB_TYPE: ${DB_TYPE:-sqlite}
+      DB_HOST: ${DB_HOST:-}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USERNAME: ${DB_USERNAME:-}
+      DB_PASSWORD: ${DB_PASSWORD:-}
+      DB_NAME: ${DB_NAME:-tabsync}
+
+    # Health check configuration
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:3000/api/v1/health",
-        ]
+      test: ["CMD", "/usr/local/bin/health-check.sh"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "${CPU_LIMIT:-1.0}"
+          memory: ${MEMORY_LIMIT:-512M}
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+
+    # Container labels
+    labels:
+      - "com.tab-sync-api.service=api"
+      - "com.tab-sync-api.environment=production"
+
+    # Logging configuration
     logging:
       driver: json-file
       options:
-        max-size: 10m
-        max-file: "3"
+        max-size: "10m"
+        max-file: "5"
+        compress: "true"
+
     networks:
       - tab-sync-network
 
+  # ---------------------------------------------------------------------------
+  # Nginx Reverse Proxy (optional - use with --profile proxy)
+  # ---------------------------------------------------------------------------
+  nginx:
+    profiles:
+      - proxy
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    image: tab-sync-nginx:${TAG:-latest}
+    container_name: tab-sync-nginx
+    restart: unless-stopped
+
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ${SSL_CERT_PATH:-./nginx/certs}:/etc/nginx/certs:ro
+      - nginx-logs:/var/log/nginx
+
+    environment:
+      - TZ=${TZ:-UTC}
+
+    depends_on:
+      app:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+    security_opt:
+      - no-new-privileges:true
+
+    labels:
+      - "com.tab-sync-api.service=proxy"
+      - "com.tab-sync-api.environment=production"
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - tab-sync-network
+
+# -----------------------------------------------------------------------------
+# Volumes
+# -----------------------------------------------------------------------------
+volumes:
+  tab-sync-data:
+    driver: local
+    labels:
+      - "com.tab-sync-api.volume=data"
+  nginx-logs:
+    driver: local
+
+# -----------------------------------------------------------------------------
+# Networks
+# -----------------------------------------------------------------------------
 networks:
   tab-sync-network:
     driver: bridge
+    labels:
+      - "com.tab-sync-api.network=main"

@@ -1,62 +1,51 @@
-import { db } from "../../src/db.js";
+import { getDb } from "../../src/db.js";
 import jwt from "jsonwebtoken";
-import type { RunResult } from "sqlite3";
 
-export const runAsync = (
+// Get the database adapter
+const db = getDb();
+
+export const runAsync = async (
   sql: string,
   params: unknown[] = [],
-): Promise<{ lastID: number; changes: number }> =>
-  new Promise((resolve, reject) => {
-    db.run(sql, params, function (this: RunResult, err: Error | null) {
-      if (err) {
-        reject(err);
-        return;
-      }
+): Promise<{ lastID: number; changes: number }> => {
+  const result = await db.run(sql, params as any[]);
+  return {
+    lastID: result.lastID ?? 0,
+    changes: result.changes ?? 0,
+  };
+};
 
-      resolve({
-        lastID: this?.lastID ?? 0,
-        changes: this?.changes ?? 0,
-      });
-    });
-  });
-
-export const getAsync = <T = Record<string, unknown>>(
+export const getAsync = async <T = Record<string, unknown>>(
   sql: string,
   params: unknown[] = [],
-): Promise<T | undefined> =>
-  new Promise((resolve, reject) => {
-    db.get(sql, params, (err: Error | null, row: unknown) => {
-      if (err) {
-        reject(err);
-        return;
-      }
+): Promise<T | undefined> => {
+  return db.get<T>(sql, params as any[]);
+};
 
-      resolve(row as T | undefined);
-    });
-  });
-
-export const allAsync = <T = Record<string, unknown>>(
+export const allAsync = async <T = Record<string, unknown>>(
   sql: string,
   params: unknown[] = [],
-): Promise<T[]> =>
-  new Promise((resolve, reject) => {
-    db.all(sql, params, (err: Error | null, rows: unknown[]) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-
-      resolve(rows as T[]);
-    });
-  });
+): Promise<T[]> => {
+  return db.all<T>(sql, params as any[]);
+};
 
 /**
  * Clears all data from the test database
  */
 export const clearDatabase = async (): Promise<void> => {
+  const dialect = db.getDialect();
+  
   await runAsync("DELETE FROM tabs");
   await runAsync("DELETE FROM users");
-  await runAsync("DELETE FROM sqlite_sequence"); // Reset autoincrement counters
+  
+  // Reset autoincrement counters (SQLite-specific)
+  if (dialect === 'sqlite') {
+    try {
+      await runAsync("DELETE FROM sqlite_sequence");
+    } catch {
+      // sqlite_sequence may not exist, ignore
+    }
+  }
 };
 
 /**
@@ -71,9 +60,10 @@ export const createTestUser = async (userData: {
   const { email, name, token, browserName } = userData;
 
   // Check if user already exists
-  const existingUser = (await getAsync("SELECT id FROM users WHERE email = ?", [
-    email,
-  ])) as { id: number } | undefined;
+  const existingUser = await getAsync<{ id: number }>(
+    "SELECT id FROM users WHERE email = ?",
+    [email],
+  );
 
   if (existingUser) {
     return existingUser.id;

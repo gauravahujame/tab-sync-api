@@ -1,19 +1,118 @@
-version: "3.8"
+# =============================================================================
+# Tab-Sync-API Development Docker Compose
+# =============================================================================
+# Usage:
+#   docker compose -f docker-compose.dev.yml up         # Start with logs
+#   docker compose -f docker-compose.dev.yml up --build # Rebuild and start
+#   docker compose -f docker-compose.dev.yml down       # Stop
+#
+# Debugging:
+#   docker compose -f docker-compose.dev.yml --profile debug up
+# =============================================================================
 
 services:
+  # ---------------------------------------------------------------------------
+  # Development API Service
+  # ---------------------------------------------------------------------------
   app:
     build:
       context: .
       dockerfile: Dockerfile.dev
     image: tab-sync-api-dev:latest
     container_name: tab-sync-api-dev
+
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # Node.js debugger
+
+    # Mount source code for hot reload
+    volumes:
+      # Source code mount with optimized caching
+      - type: bind
+        source: .
+        target: /app
+        consistency: cached
+      # Preserve node_modules from container
+      - type: volume
+        target: /app/node_modules
+      # pnpm store cache
+      - type: volume
+        source: pnpm-store
+        target: /pnpm/store
+      # Persistent data
+      - type: bind
+        source: ./data
+        target: /app/data
+
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DOMAIN: ${DOMAIN:-localhost}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-do-not-use-in-production}
+      DATABASE_PATH: /app/data/tabs.db
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      LOG_DIR: /app/data/logs
+      LOG_MAX_SIZE: 20m
+      LOG_MAX_FILES: 7d
+      LOG_ERROR_MAX_FILES: 14d
+      RATE_LIMIT_WINDOW_MS: 60000
+      RATE_LIMIT_MAX_REQUESTS: 300
+      CHOKIDAR_USEPOLLING: "1"
+      TZ: ${TZ:-UTC}
+      # PostgreSQL (optional)
+      DB_TYPE: ${DB_TYPE:-sqlite}
+      DB_HOST: ${DB_HOST:-}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USERNAME: ${DB_USERNAME:-}
+      DB_PASSWORD: ${DB_PASSWORD:-}
+      DB_NAME: ${DB_NAME:-tabsync}
+
+    command: pnpm run dev
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    labels:
+      - "com.tab-sync-api.service=api"
+      - "com.tab-sync-api.environment=development"
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - tab-sync-network
+
+  # ---------------------------------------------------------------------------
+  # Debug Mode (optional - use with --profile debug)
+  # ---------------------------------------------------------------------------
+  app-debug:
+    profiles:
+      - debug
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: tab-sync-api-dev:latest
+    container_name: tab-sync-api-debug
+
     ports:
       - "3000:3000"
       - "9229:9229"
+
     volumes:
       - type: bind
         source: .
         target: /app
+        consistency: cached
       - type: volume
         target: /app/node_modules
       - type: volume
@@ -22,34 +121,36 @@ services:
       - type: bind
         source: ./data
         target: /app/data
+
     environment:
       NODE_ENV: development
       PORT: 3000
-      DOMAIN: ${DOMAIN}
-      JWT_SECRET: dev-secret-change-in-production
+      JWT_SECRET: dev-secret-do-not-use-in-production
       DATABASE_PATH: /app/data/tabs.db
       LOG_LEVEL: debug
-      LOG_DIR: /app/data/logs
-      LOG_MAX_SIZE: 20m
-      LOG_MAX_FILES: 30d
-      LOG_ERROR_MAX_FILES: 60d
-      RATE_LIMIT_WINDOW_MS: 60000
-      RATE_LIMIT_MAX_REQUESTS: 300
-      CHOKIDAR_USEPOLLING: 1
-    command: pnpm run dev
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: 10m
-        max-file: "3"
+      CHOKIDAR_USEPOLLING: "1"
+
+    # Debug command with inspector
+    command: pnpm run dev:debug
+    restart: "no"
+    stdin_open: true
+    tty: true
+
     networks:
       - tab-sync-network
 
+# -----------------------------------------------------------------------------
+# Volumes
+# -----------------------------------------------------------------------------
 volumes:
   pnpm-store:
     driver: local
+    labels:
+      - "com.tab-sync-api.volume=pnpm-cache"
 
+# -----------------------------------------------------------------------------
+# Networks
+# -----------------------------------------------------------------------------
 networks:
   tab-sync-network:
     driver: bridge

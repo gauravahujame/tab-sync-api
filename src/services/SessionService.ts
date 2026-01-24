@@ -1,17 +1,8 @@
-import { Database } from 'sqlite3';
-import { promisify } from 'util';
+import { IDatabaseAdapter } from '../db/IDatabaseAdapter.js';
 import logger from '../utils/logger.js';
 
 export class SessionService {
-  private dbRun: (sql: string, ...params: any[]) => Promise<void>;
-  private dbGet: (sql: string, ...params: any[]) => Promise<any>;
-  private dbAll: (sql: string, ...params: any[]) => Promise<any[]>;
-
-  constructor(db: Database) {
-    this.dbRun = promisify(db.run.bind(db));
-    this.dbGet = promisify(db.get.bind(db));
-    this.dbAll = promisify(db.all.bind(db));
-  }
+  constructor(private db: IDatabaseAdapter) {}
 
   /**
    * Create a new session
@@ -37,71 +28,76 @@ export class SessionService {
     });
 
     try {
-      await this.dbRun('BEGIN TRANSACTION');
+      await this.db.beginTransaction();
 
       try {
         // Insert session
-        await this.dbRun(
+        await this.db.run(
           `INSERT INTO sessions (
             user_id, session_id, instance_id, name, description, tags,
             captured_at, tab_count, window_count
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          userId,
-          sessionId,
-          instanceId,
-          sessionData.name,
-          sessionData.description || null,
-          JSON.stringify(sessionData.tags || []),
-          Date.now(),
-          sessionData.totalTabs || 0,
-          sessionData.totalWindows || 0
+          [
+            userId,
+            sessionId,
+            instanceId,
+            sessionData.name,
+            sessionData.description || null,
+            JSON.stringify(sessionData.tags || []),
+            Date.now(),
+            sessionData.totalTabs || 0,
+            sessionData.totalWindows || 0,
+          ],
         );
 
         // Get the session internal ID
-        const session = await this.dbGet(
+        const session = await this.db.get<{ id: number }>(
           'SELECT id FROM sessions WHERE session_id = ?',
-          sessionId
+          [sessionId],
         );
 
         // Store windows and tabs if provided
-        if (sessionData.windows && sessionData.windows.length > 0) {
+        if (sessionData.windows && sessionData.windows.length > 0 && session) {
           let windowOrder = 0;
           for (const window of sessionData.windows) {
-            await this.dbRun(
+            await this.db.run(
               `INSERT INTO session_windows (
                 session_id, window_id, focused, incognito, type, window_order
               ) VALUES (?, ?, ?, ?, ?, ?)`,
-              session.id,
-              window.id || windowOrder,
-              window.focused ? 1 : 0,
-              window.incognito ? 1 : 0,
-              window.type || 'normal',
-              windowOrder
+              [
+                session.id,
+                window.id || windowOrder,
+                window.focused ? 1 : 0,
+                window.incognito ? 1 : 0,
+                window.type || 'normal',
+                windowOrder,
+              ],
             );
 
-            const sessionWindow = await this.dbGet(
+            const sessionWindow = await this.db.get<{ id: number }>(
               'SELECT id FROM session_windows WHERE session_id = ? AND window_order = ?',
-              session.id,
-              windowOrder
+              [session.id, windowOrder],
             );
 
             // Store tabs
-            if (window.tabs && window.tabs.length > 0) {
+            if (window.tabs && window.tabs.length > 0 && sessionWindow) {
               for (const tab of window.tabs) {
-                await this.dbRun(
+                await this.db.run(
                   `INSERT INTO session_tabs (
                     session_window_id, tab_id, url, title, tab_index,
                     active, pinned, group_id, fav_icon_url
                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                  sessionWindow.id,
-                  tab.id || 0,
-                  tab.url,
-                  tab.title || null,
-                  tab.index || 0,
-                  tab.active ? 1 : 0,
-                  tab.pinned ? 1 : 0,
-                  tab.groupId || null,
-                  tab.favIconUrl || null
+                  [
+                    sessionWindow.id,
+                    tab.id || 0,
+                    tab.url,
+                    tab.title || null,
+                    tab.index || 0,
+                    tab.active ? 1 : 0,
+                    tab.pinned ? 1 : 0,
+                    tab.groupId || null,
+                    tab.favIconUrl || null,
+                  ],
                 );
               }
             }
@@ -110,7 +106,7 @@ export class SessionService {
           }
         }
 
-        await this.dbRun('COMMIT');
+        await this.db.commit();
 
         logger.info('[SESSION:SERVICE] Session created successfully', {
           sessionId: sessionId.substring(0, 20),
@@ -127,7 +123,7 @@ export class SessionService {
           capturedAt: Date.now(),
         };
       } catch (error) {
-        await this.dbRun('ROLLBACK');
+        await this.db.rollback();
         throw error;
       }
     } catch (error) {
@@ -146,10 +142,9 @@ export class SessionService {
     logger.debug('[SESSION:SERVICE] Getting session', { sessionId, userId });
 
     try {
-      const session = await this.dbGet(
+      const session = await this.db.get<any>(
         `SELECT * FROM sessions WHERE user_id = ? AND session_id = ?`,
-        userId,
-        sessionId
+        [userId, sessionId],
       );
 
       if (!session) {
@@ -158,16 +153,16 @@ export class SessionService {
       }
 
       // Get windows
-      const windows = await this.dbAll(
+      const windows = await this.db.all<any>(
         `SELECT * FROM session_windows WHERE session_id = ? ORDER BY window_order`,
-        session.id
+        [session.id],
       );
 
       // Get tabs for each window
       for (const window of windows) {
-        const tabs = await this.dbAll(
+        const tabs = await this.db.all<any>(
           `SELECT * FROM session_tabs WHERE session_window_id = ? ORDER BY tab_index`,
-          window.id
+          [window.id],
         );
         window.tabs = tabs;
       }
@@ -217,12 +212,10 @@ export class SessionService {
     const offset = options.offset || 0;
 
     try {
-      const sessions = await this.dbAll(
+      const sessions = await this.db.all<any>(
         `SELECT * FROM sessions WHERE user_id = ?
          ORDER BY captured_at DESC LIMIT ? OFFSET ?`,
-        userId,
-        limit,
-        offset
+        [userId, limit, offset],
       );
 
       return sessions.map((s: any) => ({
@@ -281,9 +274,9 @@ export class SessionService {
 
       values.push(userId, sessionId);
 
-      await this.dbRun(
+      await this.db.run(
         `UPDATE sessions SET ${fields.join(', ')} WHERE user_id = ? AND session_id = ?`,
-        ...values
+        values,
       );
 
       logger.info('[SESSION:SERVICE] Session updated', { sessionId });
@@ -303,10 +296,9 @@ export class SessionService {
     logger.info('[SESSION:SERVICE] Deleting session', { sessionId, userId });
 
     try {
-      await this.dbRun(
+      await this.db.run(
         `DELETE FROM sessions WHERE user_id = ? AND session_id = ?`,
-        userId,
-        sessionId
+        [userId, sessionId],
       );
 
       logger.info('[SESSION:SERVICE] Session deleted', { sessionId });

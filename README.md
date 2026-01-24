@@ -1,284 +1,335 @@
 # Tabium - Cross-Device Tab Synchronization API
 
-> Tabium is an API for browser tab sync, built with Node.js, Express, and SQLite.
+> A self-hosted API for browser tab synchronization, built with Node.js, Express, and SQLite.
+
+## 🚀 Quick Start
+
+### Option 1: Docker (Recommended)
+
+```bash
+# Clone repository
+git clone https://github.com/gauravahujame/tab-sync-api.git
+cd tab-sync-api
+
+# Create environment file
+cp .env.example .env
+# Edit .env and set JWT_SECRET (required)
+
+# Start production server
+docker compose up -d
+
+# View logs
+docker compose logs -f
+```
+
+The API is now running at `http://localhost:3000`
+
+### Option 2: Local Development
+
+```bash
+# Prerequisites: Node.js 24+, pnpm
+git clone https://github.com/gauravahujame/tab-sync-api.git
+cd tab-sync-api
+
+pnpm install
+cp .env.example .env
+pnpm run dev
+```
+
+---
 
 ## 📦 Prerequisites
 
-- Node.js 24+ & npm
-- SQLite (bundled, no manual install needed)
-- Docker & Docker Compose (for containerized dev/prod)
-- Git (for version control)
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| Node.js | 24+ | For local development |
+| pnpm | 10.22+ | Package manager |
+| Docker | 24+ | For containerized deployment |
+| Docker Compose | v2+ | Included with Docker Desktop |
 
-## 🛠 Installation
+---
 
-### Local Development (host machine)
+## 🐳 Docker Deployment
 
-```
-git clone https://github.com:gauravahujame/tab-sync-api.git
-cd tab-sync-api
-pnpm install
-cp .env.example .env
-pnpm run dev   # Starts local dev server with hot reload
-```
+### Development Mode
 
-- **Optional (enable Git hooks):** Husky no longer runs automatically during installs. If you want the pre-commit hooks, run `pnpm dlx husky install` once after cloning.
+Hot-reloading with all development tools:
 
-### Dockerized Development
-
-```
-# Build and start dev container (with hot reload)
+```bash
+# Start development environment
+make dev
+# or
 docker compose -f docker-compose.dev.yml up --build
-```
-- Source code is mounted, changes are live-reloaded.
 
-### Dockerized Production
+# With debugger (port 9229)
+make dev-debug
+```
 
+### Production Mode
+
+Optimized, secure, minimal image:
+
+```bash
+# Basic production deployment
+make prod
+# or
+docker compose up -d --build
+
+# With nginx reverse proxy
+docker compose --profile proxy up -d --build
 ```
-docker compose -f docker-compose.yml up --build -d
+
+### Management Commands
+
+```bash
+# Using Makefile
+make help          # Show all commands
+make logs          # View logs
+make status        # Container health status
+make shell         # Shell into container
+make backup        # Backup database
+make stop          # Stop containers
+make clean         # Remove containers and volumes
+
+# Using docker.sh script
+./scripts/docker.sh start --prod      # Start production
+./scripts/docker.sh start --dev       # Start development
+./scripts/docker.sh logs              # Follow logs
+./scripts/docker.sh backup            # Backup database
+./scripts/docker.sh restore <file>    # Restore from backup
 ```
-- Runs the production-optimized image with only runtime dependencies.
+
+---
 
 ## ⚙️ Configuration
 
-- Edit `.env` for settings. Both local and Docker dev environments use this for configuration.
+### Environment Variables
 
-## 🐳 Docker
+Create `.env` from the example:
 
-### Development Mode
-- Uses `Dockerfile.dev` and `docker-compose.dev.yml`
-- Hot reload is enabled, all dev tools are available.
-- Run:
-  ```
-  docker compose -f docker-compose.dev.yml up --build
-  ```
-
-### Production Mode
-- Uses `Dockerfile` and `docker-compose.yml`
-- Optimized, secure, and lightweight image.
-- Run:
-  ```
-  docker compose -f docker-compose.yml up --build -d
-  ```
-
-### One-liner to fix this issue
-```
-docker compose down && docker builder prune -af && docker compose build --no-cache && docker compose up
+```bash
+cp .env.example .env
 ```
 
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JWT_SECRET` | - | **Required**. Generate: `openssl rand -base64 32` |
+| `PORT` | `3000` | Server port (internal) |
+| `HOST_PORT` | `3000` | External port mapping |
+| `NODE_ENV` | `development` | `development`, `production`, `test` |
+| `DOMAIN` | - | Trusted proxy domain |
+| `DB_TYPE` | `sqlite` | Database: `sqlite` or `postgres` |
+| `DATABASE_PATH` | `./data/tabs.db` | SQLite database path |
+| `LOG_LEVEL` | `info` | `error`, `warn`, `info`, `debug` |
+| `RATE_LIMIT_MAX_REQUESTS` | `60` | Requests per minute |
+| `TZ` | `UTC` | Timezone |
+| `CPU_LIMIT` | `1.0` | Docker CPU limit |
+| `MEMORY_LIMIT` | `512M` | Docker memory limit |
 
-## 🚀 Development Commands
+### PostgreSQL Configuration (Optional)
 
-Local or Docker:
-- Run tests: `pnpm test`
-- Lint code: `pnpm run lint`
-- Format code: `pnpm run format`
-- Type check: `pnpm run typecheck`
-- Build: `pnpm run build`
-- Start server: `pnpm start` (production)
+Set `DB_TYPE=postgres` and configure:
 
-## 👩‍💻 Scripts & Utilities
+```env
+DB_HOST=postgres
+DB_PORT=5432
+DB_USERNAME=tabsync
+DB_PASSWORD=your-secure-password
+DB_NAME=tabsync
+```
 
-### Automated Database Initialization
+---
 
-The server **automatically initializes the database** on startup (dev, prod, all modes):
-- Checks if database exists; creates it if missing
-- Verifies if users exist; auto-generates a default user if none found
-- Displays the default user credentials in the console **before** Express server starts
-- Ensures `browser_name` field is properly set for all users
+## 🔒 Reverse Proxy Setup
 
-**No manual database setup required!** Just run `npm run dev` or `npm start`.
+### Using Built-in Nginx
+
+```bash
+# Start with nginx profile
+docker compose --profile proxy up -d
+
+# Place SSL certificates in nginx/certs/
+# - cert.pem (certificate)
+# - key.pem (private key)
+```
+
+### Using Traefik (External)
+
+```yaml
+# docker-compose.override.yml
+services:
+  app:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tabsync.rule=Host(`api.example.com`)"
+      - "traefik.http.routers.tabsync.tls.certresolver=letsencrypt"
+```
+
+### Using Caddy (External)
+
+```
+# Caddyfile
+api.example.com {
+    reverse_proxy localhost:3000
+}
+```
+
+---
+
+## 👩‍💻 Development
 
 ### Available Scripts
 
-All scripts respect the `browser_name` field in the user database:
-
-- **`npm run user:create`** - Interactive user creation with browser_name prompt
-- **`npm run user:list`** - List all users with their browser names
-- **`npm run token:generate -- <browser-name> [user-id] [email] [name]`** - Generate JWT token
-- **`npm run db:init`** - Manually initialize database and create default user
-- **`npm run db:reset`** - Delete and reinitialize database
-- **`npm run db:clean`** - Remove all database and log files
-- **`npm run setup`** - Full setup: install dependencies and initialize database
-
-### Docker Usage
-
-Run scripts inside containers:
 ```bash
-# Development container
-docker compose -f docker-compose.dev.yml exec app npm run user:create
+# Development
+pnpm run dev              # Start with hot reload
+pnpm run dev:debug        # Start with debugger
 
-# Production container  
-docker compose exec app npm run user:list
+# Testing
+pnpm test                 # Run all tests
+pnpm run test:unit        # Unit tests only
+pnpm run test:integration # Integration tests only
+pnpm run test:coverage    # With coverage report
+
+# Code Quality
+pnpm run lint             # Run ESLint
+pnpm run lint:fix         # Auto-fix issues
+pnpm run format           # Format with Prettier
+
+# Build
+pnpm run build            # TypeScript compilation
+pnpm run clean            # Remove build artifacts
 ```
 
-## 💡 Notes
+### User Management
 
-- For local dev, hot reload and all dev tooling are available.
-- For Dockerized dev, use `Dockerfile.dev` and docker-compose.dev.yml for fast iteration.
-- For production, only the built output and runtime dependencies are included (safer and leaner).
+```bash
+# Create user
+pnpm run user:create
 
----
+# List users
+pnpm run user:list
 
-**All workflows and scripts described here match your folder and tooling setup; both development and production builds/install commands are accurate and supported.**
+# Generate access token
+pnpm run token:generate -- <browser-name>
+
+# In Docker
+docker compose exec app pnpm run user:create
 ```
 
-***
+### Database
 
-This setup ensures development workflow is frictionless (hot reload, mounted code, devDeps), while production images remain secure, fast, and minimal.Below are the **complete new files** for your Docker-based development workflow, plus **README changes** so everything remains in sync and easy to follow.
-
-***
-
-### `Dockerfile.dev`
-
-```Dockerfile
-# Development-focused Dockerfile
-FROM node:24-alpine
-
-WORKDIR /app
-
-# Install development tools
-RUN apk add --no-cache python3 make g++ bash
-
-COPY package*.json ./
-COPY tsconfig*.json ./
-COPY . .
-
-RUN npm install
-
-# Useful settings for dev (enables polling-based file watching)
-ENV NODE_ENV=development
-ENV CHOKIDAR_USEPOLLING=1
-
-EXPOSE 3000
-
-# Default: run dev server (hot reload, ts-node, etc.)
-CMD ["npm", "run", "dev"]
-```
-- All source files and dev dependencies included.
-- Suitable for interactive code changes and hot-reloading.
-- No pruning of dev dependencies.
-
-***
-
-### `docker-compose.dev.yml`
-
-```yaml
-version: '3.8'
-
-services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    container_name: tab-sync-api-dev
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=development
-      - PORT=3000
-      - JWT_SECRET=dev-secret
-      - DATABASE_PATH=/app/data/tabs.db
-      - LOG_LEVEL=debug
-      - LOG_DIR=/app/data/logs
-      - LOG_MAX_SIZE=20m
-      - LOG_MAX_FILES=30d
-      - LOG_ERROR_MAX_FILES=60d
-      - RATE_LIMIT_WINDOW_MS=60000
-      - RATE_LIMIT_MAX_REQUESTS=300
-      - CHOKIDAR_USEPOLLING=1
-    volumes:
-      - .:/app
-      - ./data:/app/data
-    command: npm run dev
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-```
-- Mounts source code for instant reloads.
-- Dev environment settings, relaxed rate limits/logging.
-- Can run scripts or REPL with all dev tooling available.
-
-***
-
-### README.md (key updates)
-
-Update your README for absolute clarity:
-
-```markdown
-## 🐳 Docker-based Development
-
-For live-reloading code, running tests, and using development tools inside a container:
-
-```
-docker compose -f docker-compose.dev.yml up --build
-```
-
-- Source files are mounted into the container for instant reloads (`npm run dev`).
-- Environment is set for development; debugging/logging are enabled.
-- Utility scripts (ts-node, etc.) are pre-installed and available.
-
-Execute scripts inside your dev container:
-
-```
-docker compose exec app npx ts-node scripts/user-create.ts <email> <password> [--admin]
-```
-
-To stop:
-
-```
-docker compose down
+```bash
+pnpm run db:init          # Initialize database
+pnpm run db:reset         # Reset database (destroys data)
+pnpm run db:clean         # Remove database files
 ```
 
 ---
 
-## 🐳 Docker-based Production
-
-For a minimal, security-hardened deployment without development tools:
+## 📁 Project Structure
 
 ```
-docker compose -f docker-compose.yml up --build -d
+tab-sync-api/
+├── src/                  # Source code
+│   ├── config.ts         # Configuration
+│   ├── db/               # Database layer
+│   ├── middlewares/      # Express middlewares
+│   ├── routes/           # API routes
+│   ├── services/         # Business logic
+│   └── utils/            # Utilities
+├── scripts/              # Automation scripts
+│   ├── docker.sh         # Docker management
+│   ├── backup.sh         # Database backup
+│   └── health-check.sh   # Health check script
+├── nginx/                # Nginx configuration
+│   ├── nginx.conf        # Main config
+│   └── Dockerfile        # Nginx image
+├── data/                 # Persistent data (gitignored)
+│   ├── tabs.db           # SQLite database
+│   ├── logs/             # Application logs
+│   └── backups/          # Database backups
+├── docker-compose.yml    # Production compose
+├── docker-compose.dev.yml# Development compose
+├── Dockerfile            # Production image
+├── Dockerfile.dev        # Development image
+└── Makefile              # Developer shortcuts
 ```
-- No live-reload.
-- Only compiled assets and production dependencies.
 
 ---
 
-## Local Development (host machine)
+## 🔧 Troubleshooting
 
-Clone, install, configure, and run as usual:
+### Container won't start
 
+```bash
+# Check logs
+docker compose logs app
+
+# Verify image builds
+docker compose build --no-cache
+
+# Verify permissions
+ls -la ./data
 ```
-git clone https://github.com:gauravahujame/tab-sync-api.git
-cd tab-sync-api
-npm install
-cp .env.example .env
-npm run dev
+
+### Health check failing
+
+```bash
+# Check health status
+docker inspect --format='{{json .State.Health}}' tab-sync-api | jq
+
+# Test health endpoint manually
+curl http://localhost:3000/api/v1/health
 ```
-- Use your editor and CLI directly on your machine.
+
+### Database issues
+
+```bash
+# Reset database
+make db-reset
+
+# Or manually
+rm -f data/tabs.db
+docker compose restart
+```
+
+### Permission issues in container
+
+```bash
+# Ensure data directory is writable
+sudo chown -R 1000:1000 ./data
+```
 
 ---
 
-## Script Usage
+## 🛡️ Security
 
-Scripts (user management, token generation, etc.) can run:
-
-- Locally (`npx ts-node ...`)
-- Inside either dev or production containers (using `docker compose exec ...`)
-
----
-
-## Project Structure, Features, API Docs
-
-_Remains unchanged; the rest of your README does not require any update for this docker/env separation._
+- **Non-root user**: Containers run as unprivileged user
+- **Read-only filesystem**: Root filesystem is read-only
+- **No new privileges**: Prevents privilege escalation
+- **Resource limits**: CPU and memory limits enforced
+- **Health checks**: Automatic container health monitoring
+- **Minimal image**: Only runtime dependencies included
 
 ---
 
-**This new development setup allows:**
-- Hot reloading via source volume mount[web:1].
-- All dev tools installed.
-- Clean, isolated environments for both development and production.
-- All README commands, flow, and developer onboarding process are now absolutely correct and in sync[web:2][web:3].
-```
+## 📝 API Endpoints
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/v1/health` | GET | No | Health check |
+| `/api/v1/auth/login` | POST | No | User login |
+| `/api/v1/tabs` | GET | Yes | Get all tabs |
+| `/api/v1/tabs` | POST | Yes | Create/update tabs |
+| `/api/v1/sync` | GET | Yes | Get sync snapshot |
+| `/api/v1/sync` | POST | Yes | Upload sync snapshot |
+| `/api/v1/sessions` | GET | Yes | Get sessions |
+
+See [API Documentation](./docs/api.md) for full details.
+
+---
+
+## 📜 License
+
+ISC © [Gaurav Ahuja](https://github.com/gauravahujame)

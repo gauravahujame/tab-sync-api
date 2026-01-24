@@ -1,0 +1,7 @@
+# Additional nginx configuration can be placed here
+# This file is mounted into /etc/nginx/conf.d/
+
+# Example: Additional rate limiting for specific endpoints
+# location /api/v1/auth/login {
+#     limit_req zone=auth_limit burst=5 nodelay;
+# }

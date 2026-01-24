@@ -1,19 +1,28 @@
-# Development Dockerfile
+# =============================================================================
+# Tab-Sync-API Development Dockerfile
+# Full development environment with hot reload and debugging
+# =============================================================================
 FROM node:24-alpine
 
-# Install build dependencies
+# OCI Image Labels
+LABEL org.opencontainers.image.title="Tab-Sync-API (Development)" \
+      org.opencontainers.image.description="Development environment for Tab-Sync-API"
+
+# Install build and development dependencies
 RUN apk add --no-cache \
-  python3 \
-  make \
-  g++ \
-  bash \
-  sqlite
+    python3 \
+    make \
+    g++ \
+    bash \
+    sqlite \
+    curl \
+    git
 
 # Enable Corepack and pre-activate pnpm
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && \
-  corepack prepare pnpm@10.22.0 --activate
+    corepack prepare pnpm@10.22.0 --activate
 
 WORKDIR /app
 
@@ -25,25 +34,32 @@ COPY pnpm-lock.yaml ./
 
 # Fetch packages using BuildKit cache mount
 RUN --mount=type=cache,id=pnpm-dev,target=/pnpm/store \
-  pnpm fetch
+    pnpm fetch
 
 # Copy package files and tsconfig
 COPY package.json tsconfig*.json ./
 
 # Install all dependencies
 RUN --mount=type=cache,id=pnpm-dev,target=/pnpm/store \
-  pnpm install --offline --frozen-lockfile
+    pnpm install --offline --frozen-lockfile
 
 # Copy source code (this layer invalidates frequently)
 COPY . .
 
 # Expose ports for dev server and debugging
+# 3000: API server
+# 9229: Node.js inspector/debugger
 EXPOSE 3000 9229
 
 # Development environment variables
 ENV NODE_ENV=development \
-  CHOKIDAR_USEPOLLING=1 \
-  NODE_OPTIONS="--max-old-space-size=512"
+    CHOKIDAR_USEPOLLING=1 \
+    NODE_OPTIONS="--max-old-space-size=512" \
+    TZ=UTC
+
+# Health check for development
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -sf http://localhost:3000/api/v1/health || exit 1
 
 # Run the dev server with hot reload
 CMD ["pnpm", "run", "dev"]

@@ -11,9 +11,8 @@ import { errorHandler } from './middlewares/errorHandler.js';
 import { instanceValidationMiddleware } from './middlewares/instanceValidation.js';
 import { adminRouter } from './routes/admin.js';
 import authRouter from './routes/auth.js';
-import { eventsRouter } from './routes/events.js';
 import { sessionsRouter } from './routes/sessions.js';
-import { syncRouter } from './routes/sync.js';
+import { snapshotRouter } from './routes/snapshots.js';
 import { tabsRouter } from './routes/tabs.js';
 import logger, { stream } from './utils/logger.js';
 import { initializeStartup } from './utils/startup.js';
@@ -69,13 +68,7 @@ const corsOptions: cors.CorsOptions = {
     callback(new Error('Not allowed by CORS'));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'X-Requested-With',
-    'Accept',
-    'X-Instance-ID',
-  ],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-Instance-ID'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   credentials: true,
   maxAge: 86400, // 24 hours
@@ -116,8 +109,19 @@ app.use(
   }),
 );
 
-// Parse JSON request bodies
-app.use(express.json({ limit: '1mb' }));
+// Raw body parser for gzip compressed requests
+// Must come BEFORE any other middleware to handle raw buffers for snapshot uploads
+app.use(
+  express.raw({
+    type: req => {
+      return req.headers['content-encoding'] === 'gzip';
+    },
+    limit: '10mb',
+    inflate: true, // ✅ Let Express decompress automatically
+  }),
+);
+
+app.use(express.json({ limit: '10mb' }));
 
 // Admin routes (no auth required)
 app.use('/api/v1/admin', adminRouter);
@@ -134,9 +138,8 @@ app.get('/api/v1/health', (_req: express.Request, res: express.Response) => {
 // API Routes
 app.use('/api/v1/tabs', tabsRouter);
 app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/sync', syncRouter);
+app.use('/api/v1/sync', snapshotRouter); // New snapshot-based sync
 app.use('/api/v1/sessions', sessionsRouter);
-app.use('/api/v1/events', eventsRouter);
 
 // Error handling middleware
 app.use(errorHandler);
@@ -166,9 +169,7 @@ async function startServer() {
     const host = '0.0.0.0';
     server = app.listen(config.port, host, () => {
       const accessUrl = `http://localhost:${config.port}`;
-      logger.info(
-        `Server is running in ${config.nodeEnv} mode on ${host}:${config.port}`,
-      );
+      logger.info(`Server is running in ${config.nodeEnv} mode on ${host}:${config.port}`);
       logger.info(`Accessible locally at ${accessUrl}`);
       logger.info(`Log level: ${config.logLevel}`);
       logger.info(`Logs directory: ${path.join(process.cwd(), config.logDir)}`);
@@ -181,7 +182,7 @@ async function startServer() {
 
 // Start the server
 console.log('🚀 Starting Tab Sync API server...');
-startServer().catch((error) => {
+startServer().catch(error => {
   console.error('❌ Failed to start server:', error);
   process.exit(1);
 });
@@ -203,3 +204,4 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 export * from './db.js';
+// Must come before express.json() to handle raw buffers
