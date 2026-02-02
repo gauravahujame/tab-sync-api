@@ -1,0 +1,102 @@
+name: Build and Deploy
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+env:
+  # Use the Gitea internal references
+  REGISTRY: ${{ gitea.server_url || github.server_url }}
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: success()
+
+    steps:
+      - name: Deploy to Homelab via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          # Define the target image name matching what we built
+          TARGET_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          # Pass environment variables to the script
+          envs: TARGET_IMAGE
+          script: |
+            # Directory where the app is deployed on the server
+            DEPLOY_DIR="${{ secrets.DEPLOY_DIR || '~/docker/tab-sync-api' }}"
+
+            echo "🚀 Deploying to $DEPLOY_DIR..."
+
+            # Create directory if it doesn't exist
+            mkdir -p "$DEPLOY_DIR"
+            cd "$DEPLOY_DIR"
+
+            # If the user has the repo cloned, pull changes.
+            # If not, we assume docker-compose.yml exists or we rely purely on docker run.
+            # Here we assume a 'GitOps' style where the repo is cloned on the server.
+            if [ -d ".git" ]; then
+              echo "Pulling latest compose config..."
+              git pull origin main || git pull origin master
+            fi
+
+            # Configure environment for the deployment
+            # Ensure .env exists or export variables
+            export IMAGE_NAME=$TARGET_IMAGE
+            export TAG=latest
+
+            # Pull the new image
+            echo "📥 Pulling new image: $TARGET_IMAGE"
+            docker compose pull app
+
+            # Restart the service
+            echo "🔄 Restarting service..."
+            docker compose up -d --remove-orphans
+
+            # Cleanup old images
+            docker image prune -f
+
+            echo "✅ Deployment complete!"

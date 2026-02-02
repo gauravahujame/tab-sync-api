@@ -24,9 +24,8 @@ services:
   # Main API Service
   # ---------------------------------------------------------------------------
   app:
-    # Use prebuilt image from container registry
-    # To build locally instead, uncomment the build section below
-    image: tabium-api:${TAG:-latest}
+    # Use IMAGE_NAME env var to point to your registry image (e.g., git.example.com/user/repo)
+    image: ${IMAGE_NAME:-tabium-api}:${TAG:-latest}
     # build:
     #   context: .
     #   target: production
