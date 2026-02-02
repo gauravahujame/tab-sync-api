@@ -1,14 +1,22 @@
 # =============================================================================
 # Tab-Sync-API Production Docker Compose
 # =============================================================================
-# Usage:
+#
+# QUICK START:
 #   docker compose up -d              # Start in background
-#   docker compose up -d --build      # Build and start
 #   docker compose logs -f            # Follow logs
 #   docker compose down               # Stop services
 #
-# With reverse proxy:
-#   docker compose --profile proxy up -d
+# REVERSE PROXY OPTIONS:
+#   Option 1: Direct Access (default)
+#     - Access API directly at http://YOUR_IP:3000 (or API_PORT)
+#     - Suitable for testing or behind an external reverse proxy (Traefik, Caddy, etc.)
+#
+#   Option 2: Built-in Nginx Proxy
+#     - docker compose --profile proxy up -d
+#     - Provides SSL termination and caching
+#     - Place certs in ./nginx/certs/ (cert.pem, key.pem)
+#
 # =============================================================================
 
 services:
@@ -16,26 +24,32 @@ services:
   # Main API Service
   # ---------------------------------------------------------------------------
   app:
-    build:
-      context: .
-      target: production
-      dockerfile: Dockerfile
-    image: tab-sync-api:${TAG:-latest}
-    container_name: tab-sync-api
+    # Use prebuilt image from container registry
+    # To build locally instead, uncomment the build section below
+    image: tabium-api:${TAG:-latest}
+    # build:
+    #   context: .
+    #   target: production
+    #   dockerfile: Dockerfile
+    container_name: tabium-api
     restart: unless-stopped
 
-    # Port mapping - only expose if not using reverse proxy
+    # Port mapping
+    # API_PORT: External port (default 3000)
+    # The container always listens on port 3000 internally
     ports:
-      - "${HOST_PORT:-3000}:3000"
+      - "${API_PORT:-3000}:3000"
 
     # Named volume for persistent data
     volumes:
-      - tab-sync-data:/app/data
+      - tabium-data:/app/data
 
     # Environment configuration
     environment:
       NODE_ENV: production
       PORT: 3000
+      # Bind to all interfaces so external reverse proxies can reach the service
+      HOST: 0.0.0.0
       DOMAIN: ${DOMAIN:-}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       DATABASE_PATH: /app/data/tabs.db
@@ -63,38 +77,8 @@ services:
       retries: 3
       start_period: 30s
 
-    # Security options
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp:mode=1777,size=64m
-
-    # Resource limits
-    deploy:
-      resources:
-        limits:
-          cpus: "${CPU_LIMIT:-1.0}"
-          memory: ${MEMORY_LIMIT:-512M}
-        reservations:
-          cpus: "0.25"
-          memory: 128M
-
-    # Container labels
-    labels:
-      - "com.tab-sync-api.service=api"
-      - "com.tab-sync-api.environment=production"
-
-    # Logging configuration
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "5"
-        compress: "true"
-
     networks:
-      - tab-sync-network
+      - tabium-network
 
   # ---------------------------------------------------------------------------
   # Nginx Reverse Proxy (optional - use with --profile proxy)
@@ -105,8 +89,8 @@ services:
     build:
       context: ./nginx
       dockerfile: Dockerfile
-    image: tab-sync-nginx:${TAG:-latest}
-    container_name: tab-sync-nginx
+    image: tabium-nginx:${TAG:-latest}
+    container_name: tabium-nginx
     restart: unless-stopped
 
     ports:
@@ -132,30 +116,15 @@ services:
       timeout: 5s
       retries: 3
 
-    security_opt:
-      - no-new-privileges:true
-
-    labels:
-      - "com.tab-sync-api.service=proxy"
-      - "com.tab-sync-api.environment=production"
-
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
     networks:
-      - tab-sync-network
+      - tabium-network
 
 # -----------------------------------------------------------------------------
 # Volumes
 # -----------------------------------------------------------------------------
 volumes:
-  tab-sync-data:
+  tabium-data:
     driver: local
-    labels:
-      - "com.tab-sync-api.volume=data"
   nginx-logs:
     driver: local
 
@@ -163,7 +132,5 @@ volumes:
 # Networks
 # -----------------------------------------------------------------------------
 networks:
-  tab-sync-network:
+  tabium-network:
     driver: bridge
-    labels:
-      - "com.tab-sync-api.network=main"

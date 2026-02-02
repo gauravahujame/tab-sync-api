@@ -1,10 +1,10 @@
-# Tabium - Cross-Device Tab Synchronization API
+# Tabium API - Cross-Device Tab Synchronization
 
-> A self-hosted API for browser tab synchronization, built with Node.js, Express, and SQLite.
+> A self-hosted API for synchronizing browser tabs across devices, built with Node.js, Express, and SQLite.
 
-## 🚀 Quick Start
+## Quick Start
 
-### Option 1: Docker (Recommended)
+### Docker (Recommended)
 
 ```bash
 # Clone repository
@@ -12,19 +12,21 @@ git clone https://github.com/gauravahujame/tab-sync-api.git
 cd tab-sync-api
 
 # Create environment file
-cp .env.example .env
-# Edit .env and set JWT_SECRET (required)
+cp .env.production.example .env
 
-# Start production server
+# Generate a secure JWT secret
+openssl rand -base64 32
+# Add the output to JWT_SECRET in .env
+
+# Start the server
 docker compose up -d
-
-# View logs
-docker compose logs -f
 ```
 
 The API is now running at `http://localhost:3000`
 
-### Option 2: Local Development
+### Local Development
+
+For contributors who want to run from source:
 
 ```bash
 # Prerequisites: Node.js 24+, pnpm
@@ -38,95 +40,24 @@ pnpm run dev
 
 ---
 
-## 📦 Prerequisites
-
-| Requirement | Version | Notes |
-|-------------|---------|-------|
-| Node.js | 24+ | For local development |
-| pnpm | 10.22+ | Package manager |
-| Docker | 24+ | For containerized deployment |
-| Docker Compose | v2+ | Included with Docker Desktop |
-
----
-
-## 🐳 Docker Deployment
-
-### Development Mode
-
-Hot-reloading with all development tools:
-
-```bash
-# Start development environment
-make dev
-# or
-docker compose -f docker-compose.dev.yml up --build
-
-# With debugger (port 9229)
-make dev-debug
-```
-
-### Production Mode
-
-Optimized, secure, minimal image:
-
-```bash
-# Basic production deployment
-make prod
-# or
-docker compose up -d --build
-
-# With nginx reverse proxy
-docker compose --profile proxy up -d --build
-```
-
-### Management Commands
-
-```bash
-# Using Makefile
-make help          # Show all commands
-make logs          # View logs
-make status        # Container health status
-make shell         # Shell into container
-make backup        # Backup database
-make stop          # Stop containers
-make clean         # Remove containers and volumes
-
-# Using docker.sh script
-./scripts/docker.sh start --prod      # Start production
-./scripts/docker.sh start --dev       # Start development
-./scripts/docker.sh logs              # Follow logs
-./scripts/docker.sh backup            # Backup database
-./scripts/docker.sh restore <file>    # Restore from backup
-```
-
----
-
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables
 
-Create `.env` from the example:
-
-```bash
-cp .env.example .env
-```
-
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `JWT_SECRET` | - | **Required**. Generate: `openssl rand -base64 32` |
-| `PORT` | `3000` | Server port (internal) |
-| `HOST_PORT` | `3000` | External port mapping |
-| `NODE_ENV` | `development` | `development`, `production`, `test` |
-| `DOMAIN` | - | Trusted proxy domain |
+| `JWT_SECRET` | - | **Required**. Auth secret. Generate: `openssl rand -base64 32` |
+| `PORT` | `3000` | Internal server port |
+| `API_PORT` | `3000` | External Docker port mapping |
+| `NODE_ENV` | `production` | Environment mode |
+| `DOMAIN` | - | Trusted proxy domain (for reverse proxy setups) |
 | `DB_TYPE` | `sqlite` | Database: `sqlite` or `postgres` |
-| `DATABASE_PATH` | `./data/tabs.db` | SQLite database path |
+| `DATABASE_PATH` | `/app/data/tabs.db` | SQLite database path |
 | `LOG_LEVEL` | `info` | `error`, `warn`, `info`, `debug` |
-| `RATE_LIMIT_MAX_REQUESTS` | `60` | Requests per minute |
+| `RATE_LIMIT_MAX_REQUESTS` | `60` | Requests per minute limit |
 | `TZ` | `UTC` | Timezone |
-| `CPU_LIMIT` | `1.0` | Docker CPU limit |
-| `MEMORY_LIMIT` | `512M` | Docker memory limit |
 
-### PostgreSQL Configuration (Optional)
+### PostgreSQL (Optional)
 
 Set `DB_TYPE=postgres` and configure:
 
@@ -140,20 +71,28 @@ DB_NAME=tabsync
 
 ---
 
-## 🔒 Reverse Proxy Setup
+## Deployment Options
 
-### Using Built-in Nginx
+### Direct Access
+
+Access the API directly without a reverse proxy:
 
 ```bash
-# Start with nginx profile
-docker compose --profile proxy up -d
-
-# Place SSL certificates in nginx/certs/
-# - cert.pem (certificate)
-# - key.pem (private key)
+docker compose up -d
+# API available at http://YOUR_IP:3000
 ```
 
-### Using Traefik (External)
+To use a custom port:
+
+```env
+API_PORT=8080
+```
+
+### Behind a Reverse Proxy
+
+The container binds to `0.0.0.0`, making it accessible to external reverse proxies.
+
+**With Traefik:**
 
 ```yaml
 # docker-compose.override.yml
@@ -161,11 +100,11 @@ services:
   app:
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.tabsync.rule=Host(`api.example.com`)"
-      - "traefik.http.routers.tabsync.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.tabium.rule=Host(`api.example.com`)"
+      - "traefik.http.routers.tabium.tls.certresolver=letsencrypt"
 ```
 
-### Using Caddy (External)
+**With Caddy:**
 
 ```
 # Caddyfile
@@ -174,16 +113,25 @@ api.example.com {
 }
 ```
 
+### Built-in Nginx Proxy
+
+Use the included nginx configuration:
+
+```bash
+# Place SSL certs in ./nginx/certs/ (cert.pem, key.pem)
+docker compose --profile proxy up -d
+```
+
 ---
 
-## 👩‍💻 Development
+## Development
 
 ### Available Scripts
 
 ```bash
 # Development
 pnpm run dev              # Start with hot reload
-pnpm run dev:debug        # Start with debugger
+pnpm run dev:debug        # Start with debugger (port 9229)
 
 # Testing
 pnpm test                 # Run all tests
@@ -198,7 +146,16 @@ pnpm run format           # Format with Prettier
 
 # Build
 pnpm run build            # TypeScript compilation
-pnpm run clean            # Remove build artifacts
+```
+
+### Docker Development
+
+```bash
+# Start development environment with hot reload
+docker compose -f docker-compose.dev.yml up --build
+
+# With debugger
+docker compose -f docker-compose.dev.yml --profile debug up
 ```
 
 ### User Management
@@ -217,17 +174,21 @@ pnpm run token:generate -- <browser-name>
 docker compose exec app pnpm run user:create
 ```
 
-### Database
+---
 
-```bash
-pnpm run db:init          # Initialize database
-pnpm run db:reset         # Reset database (destroys data)
-pnpm run db:clean         # Remove database files
-```
+## API Endpoints
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/v1/health` | GET | No | Health check |
+| `/api/v1/auth/login` | POST | No | User login |
+| `/api/v1/sync` | GET | Yes | Get sync snapshot |
+| `/api/v1/sync` | POST | Yes | Upload sync snapshot |
+| `/api/v1/sessions` | GET | Yes | Get sessions |
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 tab-sync-api/
@@ -239,47 +200,28 @@ tab-sync-api/
 │   ├── services/         # Business logic
 │   └── utils/            # Utilities
 ├── scripts/              # Automation scripts
-│   ├── docker.sh         # Docker management
-│   ├── backup.sh         # Database backup
-│   └── health-check.sh   # Health check script
-├── nginx/                # Nginx configuration
-│   ├── nginx.conf        # Main config
-│   └── Dockerfile        # Nginx image
+├── nginx/                # Nginx configuration (optional)
 ├── data/                 # Persistent data (gitignored)
-│   ├── tabs.db           # SQLite database
-│   ├── logs/             # Application logs
-│   └── backups/          # Database backups
 ├── docker-compose.yml    # Production compose
 ├── docker-compose.dev.yml# Development compose
-├── Dockerfile            # Production image
-├── Dockerfile.dev        # Development image
-└── Makefile              # Developer shortcuts
+└── Dockerfile            # Production image
 ```
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Container won't start
 
 ```bash
-# Check logs
 docker compose logs app
-
-# Verify image builds
 docker compose build --no-cache
-
-# Verify permissions
-ls -la ./data
 ```
 
 ### Health check failing
 
 ```bash
-# Check health status
-docker inspect --format='{{json .State.Health}}' tab-sync-api | jq
-
-# Test health endpoint manually
+docker inspect --format='{{json .State.Health}}' tabium-api | jq
 curl http://localhost:3000/api/v1/health
 ```
 
@@ -287,49 +229,12 @@ curl http://localhost:3000/api/v1/health
 
 ```bash
 # Reset database
-make db-reset
-
-# Or manually
 rm -f data/tabs.db
 docker compose restart
 ```
 
-### Permission issues in container
-
-```bash
-# Ensure data directory is writable
-sudo chown -R 1000:1000 ./data
-```
-
 ---
 
-## 🛡️ Security
-
-- **Non-root user**: Containers run as unprivileged user
-- **Read-only filesystem**: Root filesystem is read-only
-- **No new privileges**: Prevents privilege escalation
-- **Resource limits**: CPU and memory limits enforced
-- **Health checks**: Automatic container health monitoring
-- **Minimal image**: Only runtime dependencies included
-
----
-
-## 📝 API Endpoints
-
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/api/v1/health` | GET | No | Health check |
-| `/api/v1/auth/login` | POST | No | User login |
-| `/api/v1/tabs` | GET | Yes | Get all tabs |
-| `/api/v1/tabs` | POST | Yes | Create/update tabs |
-| `/api/v1/sync` | GET | Yes | Get sync snapshot |
-| `/api/v1/sync` | POST | Yes | Upload sync snapshot |
-| `/api/v1/sessions` | GET | Yes | Get sessions |
-
-See [API Documentation](./docs/api.md) for full details.
-
----
-
-## 📜 License
+## License
 
 ISC © [Gaurav Ahuja](https://github.com/gauravahujame)
