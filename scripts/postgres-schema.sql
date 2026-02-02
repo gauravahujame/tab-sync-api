@@ -1,5 +1,5 @@
 -- PostgreSQL Schema for Tab Sync API
--- This script creates all tables required for the Tab Sync API
+-- Clean schema with snapshot-based sync (no obsolete tables)
 
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
@@ -13,101 +13,27 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
--- Tabs table
-CREATE TABLE IF NOT EXISTS tabs (
-  id SERIAL PRIMARY KEY,
-  client_tab_id INTEGER,
-  url TEXT NOT NULL,
-  title TEXT,
-  window_id INTEGER NOT NULL,
-  tab_index INTEGER,
-  active BOOLEAN DEFAULT FALSE,
-  highlighted BOOLEAN DEFAULT FALSE,
-  pinned BOOLEAN DEFAULT FALSE,
-  audible BOOLEAN DEFAULT FALSE,
-  muted_info TEXT,
-  discarded BOOLEAN DEFAULT FALSE,
-  auto_discardable BOOLEAN DEFAULT TRUE,
-  frozen BOOLEAN DEFAULT FALSE,
-  group_id INTEGER DEFAULT -1,
-  incognito BOOLEAN DEFAULT FALSE,
-  fav_icon_url TEXT,
-  pending_url TEXT,
-  opener_tab_id INTEGER,
-  session_id TEXT,
-  last_accessed DOUBLE PRECISION,
-  status TEXT,
-  width INTEGER,
-  height INTEGER,
-  browser_name TEXT,
-  user_id INTEGER,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(url, window_id, client_tab_id, user_id, browser_name),
-  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_tabs_user_id ON tabs(user_id);
-
--- Sync markers table
-CREATE TABLE IF NOT EXISTS sync_markers (
+-- Snapshots table (primary sync mechanism)
+CREATE TABLE IF NOT EXISTS snapshots (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL,
   instance_id TEXT NOT NULL,
-  last_event_timestamp BIGINT NOT NULL DEFAULT 0,
-  last_session_id TEXT,
+  version_number BIGINT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, instance_id),
+  snapshot_data JSONB NOT NULL,
+  snapshot_hash VARCHAR(64) NOT NULL,
+  size_bytes INTEGER,
+  UNIQUE(user_id, instance_id, version_number),
   FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_sync_markers_user_instance ON sync_markers(user_id, instance_id);
-CREATE INDEX IF NOT EXISTS idx_sync_markers_instance ON sync_markers(instance_id);
+CREATE INDEX IF NOT EXISTS idx_snapshots_user_instance ON snapshots(user_id, instance_id);
+CREATE INDEX IF NOT EXISTS idx_snapshots_instance_version ON snapshots(instance_id, version_number DESC);
+CREATE INDEX IF NOT EXISTS idx_snapshots_hash ON snapshots(instance_id, snapshot_hash);
+CREATE INDEX IF NOT EXISTS idx_snapshots_created ON snapshots(created_at);
+CREATE INDEX IF NOT EXISTS idx_snapshots_user_instance_version ON snapshots(user_id, instance_id, version_number DESC);
 
--- Events table
-CREATE TABLE IF NOT EXISTS events (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL,
-  instance_id TEXT NOT NULL,
-  event_type TEXT NOT NULL,
-  document_id TEXT,
-  tab_id INTEGER,
-  window_id INTEGER,
-  url TEXT,
-  title TEXT,
-  navigation_type TEXT,
-  from_address_bar BOOLEAN DEFAULT FALSE,
-  transition_type TEXT,
-  transition_qualifiers TEXT,
-  start_time BIGINT,
-  end_time BIGINT,
-  duration_ms INTEGER,
-  was_active BOOLEAN,
-  was_window_focused BOOLEAN,
-  user_was_active BOOLEAN,
-  tab_count INTEGER,
-  window_count INTEGER,
-  group_id INTEGER,
-  group_name TEXT,
-  group_color TEXT,
-  original_session_id TEXT,
-  new_window_id INTEGER,
-  timestamp BIGINT NOT NULL,
-  synced_at TIMESTAMPTZ DEFAULT NOW(),
-  metadata TEXT,
-  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_events_user_id ON events(user_id);
-CREATE INDEX IF NOT EXISTS idx_events_instance ON events(instance_id);
-CREATE INDEX IF NOT EXISTS idx_events_user_instance ON events(user_id, instance_id);
-CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
-CREATE INDEX IF NOT EXISTS idx_events_document_id ON events(document_id);
-CREATE INDEX IF NOT EXISTS idx_events_instance_document ON events(instance_id, document_id);
-CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
-CREATE INDEX IF NOT EXISTS idx_events_user_type ON events(user_id, event_type);
-
--- Sessions table
+-- Sessions table (user-saved sessions)
 CREATE TABLE IF NOT EXISTS sessions (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL,

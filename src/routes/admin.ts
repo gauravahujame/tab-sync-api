@@ -1,17 +1,13 @@
 import express, { Request, Response } from 'express';
 import { getDb } from '../db.js';
-// import { EventService } from '../services/EventService.js';
-// import { EventFilters, EventType } from '../types/sync.types.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
 const db = getDb();
-// const eventService = new EventService(db);
-
 
 /**
  * GET /api/v1/admin/users
- * List all users with event counts
+ * List all users with snapshot counts
  */
 router.get('/users', async (_req: Request, res: Response) => {
     try {
@@ -22,11 +18,11 @@ router.get('/users', async (_req: Request, res: Response) => {
         u.name,
         u.browser_name,
         u.created_at,
-        COUNT(DISTINCT e.instance_id) as instance_count,
-        COUNT(e.id) as event_count,
-        MAX(e.timestamp) as last_event_at
+        COUNT(DISTINCT s.instance_id) as instance_count,
+        COUNT(s.id) as snapshot_count,
+        MAX(s.created_at) as last_snapshot_at
       FROM users u
-      LEFT JOIN events e ON u.id = e.user_id
+      LEFT JOIN snapshots s ON u.id = s.user_id
       GROUP BY u.id
       ORDER BY u.id DESC
     `);
@@ -46,7 +42,7 @@ router.get('/users', async (_req: Request, res: Response) => {
 
 /**
  * GET /api/v1/admin/instances/:userId
- * List all instance IDs for a user
+ * List all instance IDs for a user (based on snapshots)
  */
 router.get('/instances/:userId', async (req: Request, res: Response) => {
     const userId = parseInt(req.params.userId, 10);
@@ -60,13 +56,15 @@ router.get('/instances/:userId', async (req: Request, res: Response) => {
         const instances = await db.all(`
       SELECT
         instance_id,
-        COUNT(*) as event_count,
-        MIN(timestamp) as first_event_at,
-        MAX(timestamp) as last_event_at
-      FROM events
+        COUNT(*) as snapshot_count,
+        MIN(created_at) as first_snapshot_at,
+        MAX(created_at) as last_snapshot_at,
+        MAX(version_number) as latest_version,
+        SUM(size_bytes) as total_size_bytes
+      FROM snapshots
       WHERE user_id = ?
       GROUP BY instance_id
-      ORDER BY last_event_at DESC
+      ORDER BY last_snapshot_at DESC
     `, [userId]);
 
         res.json({
@@ -84,35 +82,68 @@ router.get('/instances/:userId', async (req: Request, res: Response) => {
 
 /**
  * GET /api/v1/admin/stats/:userId
- * Get event statistics for a user
+ * Get snapshot statistics for a user
  */
-// router.get('/stats/:userId', async (req: Request, res: Response) => {
-//     const userId = parseInt(req.params.userId, 10);
-//     const instanceId = req.query.instanceId as string | undefined;
+router.get('/stats/:userId', async (req: Request, res: Response) => {
+    const userId = parseInt(req.params.userId, 10);
+    const instanceId = req.query.instanceId as string | undefined;
 
-//     if (isNaN(userId)) {
-//         res.status(400).json({ success: false, error: 'Invalid user ID' });
-//         return;
-//     }
+    if (isNaN(userId)) {
+        res.status(400).json({ success: false, error: 'Invalid user ID' });
+        return;
+    }
 
-//     try {
-//         const stats = await eventService.getStats(userId, instanceId);
+    try {
+        let query: string;
+        let params: any[];
 
-//         res.json({
-//             success: true,
-//             stats,
-//         });
-//     } catch (error) {
-//         logger.error('[ADMIN] Stats query failed', {
-//             error: (error as Error).message,
-//             userId,
-//         });
-//         res.status(500).json({
-//             success: false,
-//             error: 'Failed to get event statistics',
-//         });
-//     }
-// });
+        if (instanceId) {
+            query = `
+        SELECT
+          COUNT(*) as total_snapshots,
+          COUNT(DISTINCT instance_id) as instance_count,
+          MAX(version_number) as latest_version,
+          MIN(created_at) as first_snapshot_at,
+          MAX(created_at) as last_snapshot_at,
+          SUM(size_bytes) as total_size_bytes,
+          AVG(size_bytes) as avg_snapshot_size
+        FROM snapshots
+        WHERE user_id = ? AND instance_id = ?
+      `;
+            params = [userId, instanceId];
+        } else {
+            query = `
+        SELECT
+          COUNT(*) as total_snapshots,
+          COUNT(DISTINCT instance_id) as instance_count,
+          MAX(version_number) as latest_version,
+          MIN(created_at) as first_snapshot_at,
+          MAX(created_at) as last_snapshot_at,
+          SUM(size_bytes) as total_size_bytes,
+          AVG(size_bytes) as avg_snapshot_size
+        FROM snapshots
+        WHERE user_id = ?
+      `;
+            params = [userId];
+        }
+
+        const stats = await db.get(query, params);
+
+        res.json({
+            success: true,
+            stats,
+        });
+    } catch (error) {
+        logger.error('[ADMIN] Stats query failed', {
+            error: (error as Error).message,
+            userId,
+        });
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get snapshot statistics',
+        });
+    }
+});
 
 export const adminRouter = router;
 export default router;

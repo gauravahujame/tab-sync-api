@@ -14,6 +14,7 @@ export async function authMiddleware(
   const publicPaths = [
     "/api/v1/health",
     "/api/v1/auth/validate", // This endpoint handles its own auth logic
+    "/api/v1/auth/register", // Public registration endpoint
   ];
 
   if (publicPaths.includes(req.path)) {

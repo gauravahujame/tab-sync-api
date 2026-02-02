@@ -98,7 +98,7 @@ export const config = {
 
   // Sync configuration
   sync: {
-    cleanupDays: 90, // Delete events older than 90 days
-    sessionStorageLimitMb: 100, // Max storage per session
+    snapshotRetentionDays: 90, // Prune snapshots older than 90 days
+    maxSnapshotsPerInstance: 1000, // Max snapshots to keep per instance
   },
 };

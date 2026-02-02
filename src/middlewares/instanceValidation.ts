@@ -23,6 +23,7 @@ export async function instanceValidationMiddleware(
   const publicPaths = [
     '/api/v1/health',
     '/api/v1/auth/validate',
+    '/api/v1/auth/register',
   ];
 
   if (publicPaths.some(path => req.path.startsWith(path))) {
@@ -38,7 +39,6 @@ export async function instanceValidationMiddleware(
   const requiresInstanceId = [
     '/api/v1/sync',
     '/api/v1/sessions',
-    '/api/v1/events',
   ];
 
   const needsInstanceId = requiresInstanceId.some(path =>

@@ -13,7 +13,6 @@ import { adminRouter } from './routes/admin.js';
 import authRouter from './routes/auth.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { snapshotRouter } from './routes/snapshots.js';
-import { tabsRouter } from './routes/tabs.js';
 import logger, { stream } from './utils/logger.js';
 import { initializeStartup } from './utils/startup.js';
 
@@ -136,7 +135,6 @@ app.get('/api/v1/health', (_req: express.Request, res: express.Response) => {
 });
 
 // API Routes
-app.use('/api/v1/tabs', tabsRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/sync', snapshotRouter); // New snapshot-based sync
 app.use('/api/v1/sessions', sessionsRouter);

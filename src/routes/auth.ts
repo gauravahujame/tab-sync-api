@@ -132,5 +132,125 @@ authRouter.get("/validate", async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/v1/auth/register:
+ *   post:
+ *     summary: Register a new user or update existing one
+ *     description: Creates a new user with generated token, or updates token for existing user
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - name
+ *               - browserName
+ *             properties:
+ *               email:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               browserName:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 token:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *       400:
+ *         description: Invalid input
+ */
+authRouter.post('/register', async (req, res) => {
+  const { email, name, browserName } = req.body;
+
+  if (!email || !name || !browserName) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing required fields: email, name, browserName',
+    });
+  }
+
+  try {
+    const db = getDb();
+
+    // Check if user exists
+    const existingUser = await db.get<{ id: number; email: string; name: string }>(
+      'SELECT id, email, name FROM users WHERE email = ? LIMIT 1',
+      [email]
+    );
+
+    let userId: number;
+
+    if (existingUser) {
+      userId = existingUser.id;
+    } else {
+      // Insert new user
+      // Token will be updated after we get the ID
+      const result = await db.run(
+        'INSERT INTO users (name, email, token, browser_name) VALUES (?, ?, ?, ?)',
+        [name, email, '', browserName]
+      );
+      if (!result.lastID) {
+        throw new Error('Failed to create user');
+      }
+      userId = result.lastID;
+    }
+
+    // Generate JWT token
+    // Payload matches what script/user-create.ts was doing
+    const payload = {
+      id: userId,
+      name,
+      email,
+      browserName,
+    };
+
+    const token = jwt.sign(payload, config.jwtSecret, {
+      expiresIn: '365d', // 1 year expiration
+    });
+
+    // Update user with new token
+    await db.run(
+      'UPDATE users SET token = ?, name = ?, browser_name = ? WHERE id = ?',
+      [token, name, browserName, userId]
+    );
+
+    logger.info(`[AUTH:REGISTER] User registered: ${email} (ID: ${userId})`);
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: userId,
+        email,
+        name,
+        browserName,
+      },
+    });
+
+  } catch (error) {
+    logger.error('[AUTH:REGISTER] Registration failed', {
+      error: (error as Error).message,
+      email,
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to register user',
+    });
+  }
+});
+
 export default authRouter;
 

@@ -116,16 +116,6 @@ export interface SnapshotRow {
   size_bytes: number;
 }
 
-/**
- * Migration checkpoint row
- */
-export interface MigrationCheckpointRow {
-  instance_id: string;
-  events_processed: number;
-  intermediate_state: Record<string, unknown>;
-  created_at: Date;
-}
-
 // ==================== API REQUEST/RESPONSE TYPES ====================
 
 /**
