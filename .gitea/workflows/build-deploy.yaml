@@ -15,10 +15,36 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      registry_address: ${{ steps.registry_setup.outputs.registry_address }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup Registry URL
+        id: registry_setup
+        run: |
+          # Get the raw URL
+          RAW_URL="${{ gitea.server_url || github.server_url }}"
+
+          # Strip protocol (http:// or https://)
+          CLEAN_URL=$(echo "$RAW_URL" | sed -E 's/^\s*.*:\/\///g')
+
+          # Fix for 'gitea' hostname not resolving in Docker
+          # If host is 'gitea', switch to 'localhost' to use the runner's network stack
+          if [[ "$CLEAN_URL" == "gitea"* ]]; then
+             echo "Fixing internal hostname: changing $CLEAN_URL to localhost variant"
+             CLEAN_URL="localhost${CLEAN_URL#gitea}"
+          fi
+
+          echo "Registry Address: $CLEAN_URL"
+
+          # Output for other jobs
+          echo "registry_address=$CLEAN_URL" >> "$GITHUB_OUTPUT"
+
+          # Set env for this job (will override the global env for subsequent steps)
+          echo "REGISTRY=$CLEAN_URL" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -56,8 +82,8 @@ jobs:
       - name: Deploy to Homelab via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
-          # Define the target image name matching what we built
-          TARGET_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          # Use the registry address determined in the build job
+          TARGET_IMAGE: ${{ needs.build-and-push.outputs.registry_address }}/${{ env.IMAGE_NAME }}:latest
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
