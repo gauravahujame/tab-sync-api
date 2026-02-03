@@ -83,8 +83,8 @@ RUN apk add --no-cache tini sqlite-libs curl && \
     # Create non-root user and required directories
     addgroup -S app && \
     adduser -S app -G app -h /home/app && \
-    mkdir -p /home/app /app/data/logs /tmp && \
-    chown -R app:app /home/app /app && \
+    mkdir -p /home/app /app/data/logs /data/logs /tmp && \
+    chown -R app:app /home/app /app /data && \
     chmod 1777 /tmp
 
 WORKDIR /app

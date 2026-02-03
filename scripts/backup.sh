@@ -15,6 +15,13 @@ BACKUP_DIR="${DATA_DIR}/backups"
 DB_FILE="${DATA_DIR}/tabs.db"
 RETENTION_COUNT="${BACKUP_RETENTION:-10}"
 
+
+# Check if backups are enabled (default: true)
+if [ "${BACKUP_ENABLED:-true}" = "false" ]; then
+    echo "Backups are disabled (BACKUP_ENABLED=false). Exiting."
+    exit 0
+fi
+
 # Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

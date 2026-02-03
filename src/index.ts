@@ -86,27 +86,29 @@ app.options('/*splat', cors(corsOptions)); // ✅ Changed from "*"
 app.use(morgan('combined', { stream }));
 
 // Rate limiting
-app.use(
-  rateLimit({
-    windowMs: config.rateLimit.windowMs,
-    max: config.rateLimit.maxRequests,
-    standardHeaders: true,
-    handler: (
-      req: express.Request,
-      res: express.Response,
-      _next: express.NextFunction,
-      options: any,
-    ) => {
-      const ip = req.ip || req.connection.remoteAddress;
-      logger.warn(`Rate limit exceeded for IP: ${ip}, Path: ${req.path}`);
-      res.status(options.statusCode).json(options.message);
-    },
-    message: {
-      success: false,
-      error: 'Too many requests, please try again later.',
-    },
-  }),
-);
+if (config.rateLimit.enabled) {
+  app.use(
+    rateLimit({
+      windowMs: config.rateLimit.windowMs,
+      max: config.rateLimit.maxRequests,
+      standardHeaders: true,
+      handler: (
+        req: express.Request,
+        res: express.Response,
+        _next: express.NextFunction,
+        options: any,
+      ) => {
+        const ip = req.ip || req.connection.remoteAddress;
+        logger.warn(`Rate limit exceeded for IP: ${ip}, Path: ${req.path}`);
+        res.status(options.statusCode).json(options.message);
+      },
+      message: {
+        success: false,
+        error: 'Too many requests, please try again later.',
+      },
+    }),
+  );
+}
 
 // Raw body parser for gzip compressed requests
 // Must come BEFORE any other middleware to handle raw buffers for snapshot uploads

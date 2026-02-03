@@ -34,14 +34,14 @@ services:
     restart: unless-stopped
 
     # Port mapping
-    # API_PORT: External port (default 3000)
+    # Port mapping
     # The container always listens on port 3000 internally
     ports:
-      - "${API_PORT:-3000}:3000"
+      - "${PORT:-3000}:3000"
 
     # Named volume for persistent data
     volumes:
-      - tabium-data:/app/data
+      - tabium-data:/data
 
     # Environment configuration
     environment:
@@ -51,12 +51,13 @@ services:
       HOST: 0.0.0.0
       DOMAIN: ${DOMAIN:-}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
-      DATABASE_PATH: /app/data/tabs.db
+      DATABASE_PATH: /data/tabs.db
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      LOG_DIR: /app/data/logs
+      LOG_DIR: /data/logs
       LOG_MAX_SIZE: ${LOG_MAX_SIZE:-20m}
       LOG_MAX_FILES: ${LOG_MAX_FILES:-30d}
       LOG_ERROR_MAX_FILES: ${LOG_ERROR_MAX_FILES:-60d}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
       RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
       RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-60}
       TZ: ${TZ:-UTC}

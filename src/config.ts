@@ -9,6 +9,7 @@ const configSchema = z.object({
   PORT: z.string().regex(/^\d+$/).optional(),
   DATABASE_PATH: z.string().min(1).optional(),
   JWT_SECRET: z.string().min(1).optional(),
+  RATE_LIMIT_ENABLED: z.string().optional(),
   RATE_LIMIT_WINDOW_MS: z.string().regex(/^\d+$/).optional(),
   RATE_LIMIT_MAX_REQUESTS: z.string().regex(/^\d+$/).optional(),
   ALLOWED_ORIGINS: z.string().optional(),
@@ -82,6 +83,7 @@ export const config = {
 
   // Rate limiting
   rateLimit: {
+    enabled: env.RATE_LIMIT_ENABLED === "true" || env.RATE_LIMIT_ENABLED === undefined, // Default to true
     windowMs: env.RATE_LIMIT_WINDOW_MS
       ? Number(env.RATE_LIMIT_WINDOW_MS)
       : 60 * 1000, // 1 minute

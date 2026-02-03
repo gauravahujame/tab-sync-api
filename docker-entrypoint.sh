@@ -11,7 +11,12 @@
 set -e
 
 # Create data directories if they don't exist
+# We support both /app/data (legacy/dev) and /data (production volume)
 mkdir -p /app/data/logs /app/data/backups
+if [ -d "/data" ]; then
+    mkdir -p /data/logs /data/backups
+    chown app:app /data/logs /data/backups 2>/dev/null || true
+fi
 
 # Run database initialization only in production/dev (not in test)
 if [ "$NODE_ENV" != "test" ]; then
@@ -40,7 +45,7 @@ echo "=================================================="
 echo "  Environment: $NODE_ENV"
 echo "  Port: ${PORT:-3000}"
 echo "  Log Level: ${LOG_LEVEL:-info}"
-echo "  Database: ${DATABASE_PATH:-/app/data/tabs.db}"
+echo "  Database: ${DATABASE_PATH:-/data/tabs.db}"
 echo "=================================================="
 echo ""
 
