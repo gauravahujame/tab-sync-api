@@ -29,13 +29,13 @@ jobs:
           RAW_URL="${{ gitea.server_url || github.server_url }}"
 
           # Strip protocol (http:// or https://)
-          CLEAN_URL=$(echo "$RAW_URL" | sed -E 's/^\s*.*:\/\///g')
+          CLEAN_URL=$(echo "$RAW_URL" | sed -E 's|^https?://||')
 
           # Fix for 'gitea' hostname not resolving in Docker
           # If host is 'gitea', switch to 'localhost' to use the runner's network stack
           if [[ "$CLEAN_URL" == "gitea"* ]]; then
-             echo "Fixing internal hostname: changing $CLEAN_URL to localhost variant"
-             CLEAN_URL="localhost${CLEAN_URL#gitea}"
+            echo "Fixing internal hostname: changing $CLEAN_URL to localhost variant"
+            CLEAN_URL="localhost${CLEAN_URL#gitea}"
           fi
 
           echo "Registry Address: $CLEAN_URL"
@@ -43,8 +43,13 @@ jobs:
           # Output for other jobs
           echo "registry_address=$CLEAN_URL" >> "$GITHUB_OUTPUT"
 
-          # Set env for this job (will override the global env for subsequent steps)
+          # Set env for this job
           echo "REGISTRY=$CLEAN_URL" >> "$GITHUB_ENV"
+
+      - name: Debug Registry Values
+        run: |
+          echo "Original URL: ${{ gitea.server_url || github.server_url }}"
+          echo "Cleaned Registry: ${{ env.REGISTRY }}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
