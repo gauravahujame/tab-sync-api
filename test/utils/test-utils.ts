@@ -1,5 +1,5 @@
-import { getDb } from "../../src/db.js";
-import jwt from "jsonwebtoken";
+import { getDb } from '../../src/db.js';
+import jwt from 'jsonwebtoken';
 
 // Get the database adapter
 const db = getDb();
@@ -34,14 +34,14 @@ export const allAsync = async <T = Record<string, unknown>>(
  */
 export const clearDatabase = async (): Promise<void> => {
   const dialect = db.getDialect();
-  
-  await runAsync("DELETE FROM tabs");
-  await runAsync("DELETE FROM users");
-  
+
+  await runAsync('DELETE FROM tabs');
+  await runAsync('DELETE FROM users');
+
   // Reset autoincrement counters (SQLite-specific)
   if (dialect === 'sqlite') {
     try {
-      await runAsync("DELETE FROM sqlite_sequence");
+      await runAsync('DELETE FROM sqlite_sequence');
     } catch {
       // sqlite_sequence may not exist, ignore
     }
@@ -60,10 +60,9 @@ export const createTestUser = async (userData: {
   const { email, name, token, browserName } = userData;
 
   // Check if user already exists
-  const existingUser = await getAsync<{ id: number }>(
-    "SELECT id FROM users WHERE email = ?",
-    [email],
-  );
+  const existingUser = await getAsync<{ id: number }>('SELECT id FROM users WHERE email = ?', [
+    email,
+  ]);
 
   if (existingUser) {
     return existingUser.id;
@@ -71,7 +70,7 @@ export const createTestUser = async (userData: {
 
   // Create new user
   const result = await runAsync(
-    "INSERT INTO users (email, name, token, browser_name) VALUES (?, ?, ?, ?)",
+    'INSERT INTO users (email, name, token, browser_name) VALUES (?, ?, ?, ?)',
     [email, name, token, browserName],
   );
 
@@ -110,7 +109,7 @@ export const createTestTabs = async (
         tab.last_accessed || Date.now(),
         tab.incognito ? 1 : 0,
         tab.group_id || -1,
-        tab.browser_name || "test-browser",
+        tab.browser_name || 'test-browser',
         userId,
       ],
     );
@@ -125,29 +124,21 @@ export const createTestTabs = async (
  * Retrieves a user by email
  */
 export const getUserByEmail = async (email: string) => {
-  return getAsync("SELECT * FROM users WHERE email = ?", [email]);
+  return getAsync('SELECT * FROM users WHERE email = ?', [email]);
 };
 
 /**
  * Retrieves tabs for a user
  */
 export const getUserTabs = async (userId: number) => {
-  return allAsync("SELECT * FROM tabs WHERE user_id = ?", [userId]);
+  return allAsync('SELECT * FROM tabs WHERE user_id = ?', [userId]);
 };
 
 /**
  * Generates a JWT token for testing
  */
-export const generateTestToken = (
-  userId: number,
-  email: string,
-  browserName: string,
-): string => {
-  return jwt.sign(
-    { userId, email, browserName },
-    process.env.JWT_SECRET || "test-secret",
-    {
-      expiresIn: "1h",
-    },
-  );
+export const generateTestToken = (userId: number, email: string, browserName: string): string => {
+  return jwt.sign({ userId, email, browserName }, process.env.JWT_SECRET || 'test-secret', {
+    expiresIn: '1h',
+  });
 };

@@ -1,12 +1,9 @@
-import { Request, Response, NextFunction } from "express";
-import {
-  CustomError,
-  errorHandler,
-} from "../../../src/middlewares/errorHandler";
-import { mockRequest, mockResponse } from "../../helpers/test.helpers";
-import { ValidationError } from "express-validator";
+import { Request, Response, NextFunction } from 'express';
+import { CustomError, errorHandler } from '../../../src/middlewares/errorHandler';
+import { mockRequest, mockResponse } from '../../helpers/test.helpers';
+import { ValidationError } from 'express-validator';
 
-describe("Error Handling Middleware", () => {
+describe('Error Handling Middleware', () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
   let next: jest.Mock<NextFunction>;
@@ -24,18 +21,18 @@ describe("Error Handling Middleware", () => {
     console.error = jest.fn();
   });
 
-  it("should handle ValidationError from express-validator", () => {
+  it('should handle ValidationError from express-validator', () => {
     // Arrange
     const error = {
-      name: "ValidationError",
+      name: 'ValidationError',
       statusCode: 400,
       errors: [
         {
-          type: "field",
-          value: "invalid-email",
-          msg: "Invalid email",
-          path: "email",
-          location: "body",
+          type: 'field',
+          value: 'invalid-email',
+          msg: 'Invalid email',
+          path: 'email',
+          location: 'body',
         } as ValidationError,
       ],
     };
@@ -47,14 +44,14 @@ describe("Error Handling Middleware", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: "Validation Error",
-      details: [{ field: "email", message: "Invalid email" }],
+      error: 'Validation Error',
+      details: [{ field: 'email', message: 'Invalid email' }],
     });
   });
 
-  it("should handle custom AppError with status code", () => {
+  it('should handle custom AppError with status code', () => {
     // Arrange
-    const error = new Error("Custom error") as any;
+    const error = new Error('Custom error') as any;
     error.statusCode = 403;
     error.isOperational = true;
 
@@ -65,14 +62,14 @@ describe("Error Handling Middleware", () => {
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: "Custom error",
+      error: 'Custom error',
     });
   });
 
-  it("should handle JWT errors", () => {
+  it('should handle JWT errors', () => {
     // Arrange
-    const error = new Error("Invalid token");
-    error.name = "JsonWebTokenError";
+    const error = new Error('Invalid token');
+    error.name = 'JsonWebTokenError';
 
     // Act
     errorHandler(error, req as Request, res as Response, next);
@@ -81,14 +78,14 @@ describe("Error Handling Middleware", () => {
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: "Invalid token",
+      error: 'Invalid token',
     });
   });
 
-  it("should handle JWT expiration error", () => {
+  it('should handle JWT expiration error', () => {
     // Arrange
-    const error = new Error("Token expired");
-    error.name = "TokenExpiredError";
+    const error = new Error('Token expired');
+    error.name = 'TokenExpiredError';
 
     // Act
     errorHandler(error, req as Request, res as Response, next);
@@ -97,13 +94,13 @@ describe("Error Handling Middleware", () => {
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: "Token expired",
+      error: 'Token expired',
     });
   });
 
-  it("should handle 404 errors", () => {
+  it('should handle 404 errors', () => {
     // Arrange
-    const error = new Error("Not Found") as any;
+    const error = new Error('Not Found') as any;
     error.statusCode = 404;
 
     // Act
@@ -113,16 +110,16 @@ describe("Error Handling Middleware", () => {
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: "Not Found",
+      error: 'Not Found',
     });
   });
 
-  it("should handle unknown errors in production", () => {
+  it('should handle unknown errors in production', () => {
     // Arrange
     const originalNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = "production";
+    process.env.NODE_ENV = 'production';
 
-    const error = new Error("Some unexpected error");
+    const error = new Error('Some unexpected error');
 
     // Act
     errorHandler(error, req as Request, res as Response, next);
@@ -131,19 +128,19 @@ describe("Error Handling Middleware", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: "Internal Server Error",
+      error: 'Internal Server Error',
     });
 
     // Restore NODE_ENV
     process.env.NODE_ENV = originalNodeEnv;
   });
 
-  it("should include stack trace in development", () => {
+  it('should include stack trace in development', () => {
     // Arrange
     const originalNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = "development";
+    process.env.NODE_ENV = 'development';
 
-    const error = new Error("Some error");
+    const error = new Error('Some error');
 
     // Act
     errorHandler(error, req as Request, res as Response, next);
@@ -154,7 +151,7 @@ describe("Error Handling Middleware", () => {
     // Assert
     expect(res.status).toHaveBeenCalledWith(500);
     expect(response.success).toBe(false);
-    expect(response.error).toBe("Some error");
+    expect(response.error).toBe('Some error');
     expect(response.stack).toBeDefined();
 
     // Restore NODE_ENV

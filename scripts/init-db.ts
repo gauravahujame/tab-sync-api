@@ -1,7 +1,7 @@
-import jwt from "jsonwebtoken"; // Changed this line
-import sqlite3 from "sqlite3";
-import { config } from "../src/config.js";
-import logger from "../src/utils/logger.js";
+import jwt from 'jsonwebtoken'; // Changed this line
+import sqlite3 from 'sqlite3';
+import { config } from '../src/config.js';
+import logger from '../src/utils/logger.js';
 
 interface DbUser {
   id: number;
@@ -14,9 +14,9 @@ interface DbUser {
 
 async function initializeDatabase() {
   try {
-    const db = new sqlite3.Database(config.databasePath, (err) => {
+    const db = new sqlite3.Database(config.databasePath, err => {
       if (err) {
-        logger.error("Error opening database:", err.message);
+        logger.error('Error opening database:', err.message);
         process.exit(1);
       }
     });
@@ -31,14 +31,14 @@ async function initializeDatabase() {
       });
     const dbRun = (sql: string, params: any[] = []): Promise<void> =>
       new Promise((resolve, reject) => {
-        db.run(sql, params, (err) => {
+        db.run(sql, params, err => {
           if (err) reject(err);
           else resolve();
         });
       });
     const dbClose = (): Promise<void> =>
       new Promise((resolve, reject) => {
-        db.close((err) => {
+        db.close(err => {
           if (err) reject(err);
           else resolve();
         });
@@ -91,25 +91,23 @@ async function initializeDatabase() {
           FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         )`,
       );
-      await dbRun(
-        `CREATE INDEX IF NOT EXISTS idx_tabs_user_id ON tabs(user_id)`,
-      );
+      await dbRun(`CREATE INDEX IF NOT EXISTS idx_tabs_user_id ON tabs(user_id)`);
     }
 
     // RUN TABLE INIT
     await ensureTables();
 
     // Check for users
-    const users = (await dbAll("SELECT * FROM users LIMIT 1")) as DbUser[];
+    const users = (await dbAll('SELECT * FROM users LIMIT 1')) as DbUser[];
 
     if (users.length === 0) {
-      logger.warn("╔══════════════════════════════════════════════════╗");
-      logger.warn("║               NO USERS FOUND                     ║");
-      logger.warn("╠══════════════════════════════════════════════════╣");
+      logger.warn('╔══════════════════════════════════════════════════╗');
+      logger.warn('║               NO USERS FOUND                     ║');
+      logger.warn('╠══════════════════════════════════════════════════╣');
 
-      const name = "Admin User";
-      const email = "admin@tabsync.local";
-      const browserName = "default-browser";
+      const name = 'Admin User';
+      const email = 'admin@tabsync.local';
+      const browserName = 'default-browser';
 
       const payload = {
         id: null,
@@ -119,7 +117,7 @@ async function initializeDatabase() {
       };
 
       const token = jwt.sign(payload, config.jwtSecret, {
-        expiresIn: "365d",
+        expiresIn: '365d',
       });
 
       await dbRun(
@@ -127,9 +125,7 @@ async function initializeDatabase() {
         [email, name, token, browserName],
       );
 
-      const newUser = (await dbAll(
-        "SELECT last_insert_rowid() as id",
-      )) as Array<{ id: number }>;
+      const newUser = (await dbAll('SELECT last_insert_rowid() as id')) as Array<{ id: number }>;
       const userId = newUser[0].id;
 
       const updatedPayload = {
@@ -140,33 +136,30 @@ async function initializeDatabase() {
       };
 
       const updatedToken = jwt.sign(updatedPayload, config.jwtSecret, {
-        expiresIn: "365d",
+        expiresIn: '365d',
       });
 
-      await dbRun('UPDATE users SET token = ? WHERE id = ?', [
-        updatedToken,
-        userId,
-      ]);
+      await dbRun('UPDATE users SET token = ? WHERE id = ?', [updatedToken, userId]);
 
-      logger.warn("║  DEFAULT ADMIN USER CREATED:                     ");
+      logger.warn('║  DEFAULT ADMIN USER CREATED:                     ');
       logger.warn(`║  ID:       ${userId}                             `);
       logger.warn(`║  Email:    ${email}                              `);
       logger.warn(`║  Name:     ${name}                               `);
       logger.warn(`║  Browser:  ${browserName}                        `);
-      logger.warn("║                                                  ");
-      logger.warn("║  🔑 JWT TOKEN:                                   ");
+      logger.warn('║                                                  ');
+      logger.warn('║  🔑 JWT TOKEN:                                   ');
       logger.warn(`║  ${updatedToken.substring(0, 40)}...`);
-      logger.warn("╠══════════════════════════════════════════════════╣");
-      logger.warn("║  IMPORTANT: Use this token for authentication    ║");
-      logger.warn("║  Add to Authorization header: Bearer <token>     ║");
-      logger.warn("╚══════════════════════════════════════════════════╝");
+      logger.warn('╠══════════════════════════════════════════════════╣');
+      logger.warn('║  IMPORTANT: Use this token for authentication    ║');
+      logger.warn('║  Add to Authorization header: Bearer <token>     ║');
+      logger.warn('╚══════════════════════════════════════════════════╝');
     } else {
-      logger.info("Database already initialized with users");
+      logger.info('Database already initialized with users');
     }
 
     await dbClose();
   } catch (error) {
-    logger.error("Error initializing database:", error);
+    logger.error('Error initializing database:', error);
     process.exit(1);
   }
 }

@@ -1,30 +1,27 @@
-import { describe, it, expect } from "@jest/globals";
-import {
-  tabSchema,
-  batchTabsSchema,
-} from "../../../src/validators/tabs.validator.js";
+import { describe, it, expect } from '@jest/globals';
+import { tabSchema, batchTabsSchema } from '../../../src/validators/tabs.validator.js';
 
-describe("Tab Validation", () => {
-  describe("Single Tab Validation", () => {
-    it("should validate a valid tab object", () => {
+describe('Tab Validation', () => {
+  describe('Single Tab Validation', () => {
+    it('should validate a valid tab object', () => {
       const validTab = {
-        url: "https://example.com",
-        title: "Example Domain",
+        url: 'https://example.com',
+        title: 'Example Domain',
         windowId: 1,
         client_tab_id: 1001,
         last_accessed: Date.now(),
         incognito: false,
         group_id: -1,
-        browser_name: "test-browser",
+        browser_name: 'test-browser',
       };
 
       const result = tabSchema.safeParse(validTab);
       expect(result.success).toBe(true);
     });
 
-    it("should require url field", () => {
+    it('should require url field', () => {
       const invalidTab = {
-        title: "Missing URL",
+        title: 'Missing URL',
         windowId: 1,
       };
 
@@ -33,16 +30,15 @@ describe("Tab Validation", () => {
       if (!result.success) {
         expect(
           result.error.issues.some(
-            (issue) =>
-              issue.path.includes("url") && issue.code === "invalid_type",
+            issue => issue.path.includes('url') && issue.code === 'invalid_type',
           ),
         ).toBe(true);
       }
     });
 
-    it("should validate URL format", () => {
+    it('should validate URL format', () => {
       const invalidTab = {
-        url: "not-a-url",
+        url: 'not-a-url',
         windowId: 1,
       };
 
@@ -51,16 +47,15 @@ describe("Tab Validation", () => {
       if (!result.success) {
         expect(
           result.error.issues.some(
-            (issue) =>
-              issue.path.includes("url") && issue.code === "invalid_string",
+            issue => issue.path.includes('url') && issue.code === 'invalid_string',
           ),
         ).toBe(true);
       }
     });
 
-    it("should set default values for optional fields", () => {
+    it('should set default values for optional fields', () => {
       const minimalTab = {
-        url: "https://example.com",
+        url: 'https://example.com',
         windowId: 1,
       };
 
@@ -78,13 +73,13 @@ describe("Tab Validation", () => {
     });
   });
 
-  describe("Batch Tabs Validation", () => {
-    it("should validate a valid batch of tabs", () => {
+  describe('Batch Tabs Validation', () => {
+    it('should validate a valid batch of tabs', () => {
       const validBatch = {
         tabs: [
-          { url: "https://example.com/1", windowId: 1 },
-          { url: "https://example.com/2", windowId: 1, title: "Second Tab" },
-          { url: "https://example.com/3", windowId: 2, incognito: true },
+          { url: 'https://example.com/1', windowId: 1 },
+          { url: 'https://example.com/2', windowId: 1, title: 'Second Tab' },
+          { url: 'https://example.com/3', windowId: 2, incognito: true },
         ],
       };
 
@@ -92,7 +87,7 @@ describe("Tab Validation", () => {
       expect(result.success).toBe(true);
     });
 
-    it("should reject an empty tabs array", () => {
+    it('should reject an empty tabs array', () => {
       const invalidBatch = {
         tabs: [],
       };
@@ -102,14 +97,13 @@ describe("Tab Validation", () => {
       if (!result.success) {
         expect(
           result.error.issues.some(
-            (issue) =>
-              issue.path.includes("tabs") && issue.code === "too_small",
+            issue => issue.path.includes('tabs') && issue.code === 'too_small',
           ),
         ).toBe(true);
       }
     });
 
-    it("should enforce maximum batch size", () => {
+    it('should enforce maximum batch size', () => {
       // Create a batch with 5001 tabs (1 over the limit)
       const largeBatch = {
         tabs: Array(5001)
@@ -125,18 +119,18 @@ describe("Tab Validation", () => {
       if (!result.success) {
         expect(
           result.error.issues.some(
-            (issue) => issue.path.includes("tabs") && issue.code === "too_big",
+            issue => issue.path.includes('tabs') && issue.code === 'too_big',
           ),
         ).toBe(true);
       }
     });
 
-    it("should validate each tab in the batch", () => {
+    it('should validate each tab in the batch', () => {
       const invalidBatch = {
         tabs: [
-          { url: "https://example.com/1", windowId: 1 },
-          { title: "Missing URL" }, // Invalid tab
-          { url: "https://example.com/3", windowId: 2 },
+          { url: 'https://example.com/1', windowId: 1 },
+          { title: 'Missing URL' }, // Invalid tab
+          { url: 'https://example.com/3', windowId: 2 },
         ],
       };
 
@@ -146,19 +140,17 @@ describe("Tab Validation", () => {
         // Should have an error for the second tab
         expect(
           result.error.issues.some(
-            (issue) =>
-              issue.path.includes("tabs") &&
-              issue.path.includes(1) &&
-              issue.path.includes("url"),
+            issue =>
+              issue.path.includes('tabs') && issue.path.includes(1) && issue.path.includes('url'),
           ),
         ).toBe(true);
       }
     });
   });
 
-  describe("Edge Cases", () => {
-    it("should handle very long URLs", () => {
-      const longUrl = "https://example.com/" + "a".repeat(2000);
+  describe('Edge Cases', () => {
+    it('should handle very long URLs', () => {
+      const longUrl = 'https://example.com/' + 'a'.repeat(2000);
       const tab = {
         url: longUrl,
         windowId: 1,
@@ -168,9 +160,9 @@ describe("Tab Validation", () => {
       expect(result.success).toBe(true);
     });
 
-    it("should handle special characters in URLs", () => {
+    it('should handle special characters in URLs', () => {
       const specialUrl =
-        "https://example.com/path/with/special?chars=!@#$%^&*()_+{}[]|\\:;'\"<>,.?/~`";
+        'https://example.com/path/with/special?chars=!@#$%^&*()_+{}[]|\\:;\'"<>,.?/~`';
       const tab = {
         url: specialUrl,
         windowId: 1,
@@ -180,9 +172,9 @@ describe("Tab Validation", () => {
       expect(result.success).toBe(true);
     });
 
-    it("should handle very large windowId values", () => {
+    it('should handle very large windowId values', () => {
       const tab = {
-        url: "https://example.com",
+        url: 'https://example.com',
         windowId: Number.MAX_SAFE_INTEGER,
       };
 

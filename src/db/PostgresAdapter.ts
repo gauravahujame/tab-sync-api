@@ -37,20 +37,21 @@ export class PostgresAdapter extends BaseDatabaseAdapter {
     });
 
     // Test connection
-    this.pool.connect()
-      .then((client) => {
+    this.pool
+      .connect()
+      .then(client => {
         console.log('✅ PostgreSQL database connected successfully');
         client.release();
         this.markReady();
       })
-      .catch((err) => {
+      .catch(err => {
         console.error('❌ Failed to connect to PostgreSQL database:', err.message);
         logger.error('Failed to connect to PostgreSQL database:', err.message);
         process.exit(1);
       });
 
     // Handle pool errors
-    this.pool.on('error', (err) => {
+    this.pool.on('error', err => {
       logger.error('Unexpected PostgreSQL pool error:', err.message);
     });
   }

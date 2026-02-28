@@ -53,15 +53,11 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
       });
     }
 
-    const result = await sessionService.createSession(
-      userId,
-      instanceId,
-      validation.data
-    );
+    const result = await sessionService.createSession(userId, instanceId, validation.data);
 
     res.status(201).json({
       success: true,
-       result,
+      result,
     });
   } catch (error) {
     logger.error('[SESSION:ROUTE] Create failed', {
@@ -89,7 +85,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-       sessions,
+      sessions,
     });
   } catch (error) {
     logger.error('[SESSION:ROUTE] List failed', {
@@ -122,7 +118,7 @@ router.get('/:sessionId', authMiddleware, async (req: Request, res: Response) =>
 
     res.json({
       success: true,
-       session,
+      session,
     });
   } catch (error) {
     logger.error('[SESSION:ROUTE] Get failed', {
@@ -225,12 +221,12 @@ router.post('/batch', authMiddleware, async (req: Request, res: Response) => {
     const result = await sessionService.batchCreateSessions(
       userId,
       instanceId,
-      validation.data.sessions
+      validation.data.sessions,
     );
 
     res.status(201).json({
       success: true,
-       result,
+      result,
     });
   } catch (error) {
     logger.error('[SESSION:ROUTE] Batch failed', {

@@ -55,10 +55,8 @@ export async function ensureColumnExists(
 
   try {
     if (dialect === 'sqlite') {
-      const columns = await db.all<{ name: string }>(
-        `PRAGMA table_info(${tableName})`,
-      );
-      const hasColumn = columns.some((col) => col.name === columnName);
+      const columns = await db.all<{ name: string }>(`PRAGMA table_info(${tableName})`);
+      const hasColumn = columns.some(col => col.name === columnName);
 
       if (!hasColumn) {
         await db.run(`ALTER TABLE ${tableName} ADD COLUMN ${columnDefinition}`);

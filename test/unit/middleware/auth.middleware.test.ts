@@ -1,29 +1,25 @@
-import { NextFunction, Response } from "express";
-import { db } from "../../../src/db";
-import { authMiddleware } from "../../../src/middlewares/auth";
-import { AuthRequest } from "../../../src/types";
-import {
-  mockNext,
-  mockRequest,
-  mockResponse,
-} from "../../helpers/test.helpers";
+import { NextFunction, Response } from 'express';
+import { db } from '../../../src/db';
+import { authMiddleware } from '../../../src/middlewares/auth';
+import { AuthRequest } from '../../../src/types';
+import { mockNext, mockRequest, mockResponse } from '../../helpers/test.helpers';
 
-jest.mock("jsonwebtoken", () => ({
+jest.mock('jsonwebtoken', () => ({
   verify: jest.fn((token, secret, callback) => {
-    if (token === "valid.token.123") {
-      callback(null, { userId: 1, email: "test@example.com" });
+    if (token === 'valid.token.123') {
+      callback(null, { userId: 1, email: 'test@example.com' });
     } else {
-      callback(new Error("Invalid token"), null);
+      callback(new Error('Invalid token'), null);
     }
   }),
 }));
 
 // Mock database
-jest.mock("../../../src/db", () => ({
+jest.mock('../../../src/db', () => ({
   db: {
     get: jest.fn((query, params, callback) => {
       if (params[0] === 1) {
-        callback(null, { id: 1, email: "test@example.com", name: "Test User" });
+        callback(null, { id: 1, email: 'test@example.com', name: 'Test User' });
       } else {
         callback(null, null);
       }
@@ -31,7 +27,7 @@ jest.mock("../../../src/db", () => ({
   },
 }));
 
-describe("Authentication Middleware", () => {
+describe('Authentication Middleware', () => {
   let req: Partial<AuthRequest>;
   let res: Partial<Response>;
   let next: jest.Mock<NextFunction>;
@@ -46,10 +42,10 @@ describe("Authentication Middleware", () => {
     next = mockNext();
   });
 
-  it("should call next() with valid token", async () => {
+  it('should call next() with valid token', async () => {
     // Arrange
     req.headers = {
-      authorization: "Bearer valid.token.123",
+      authorization: 'Bearer valid.token.123',
     };
 
     // Act
@@ -61,12 +57,12 @@ describe("Authentication Middleware", () => {
     expect(res.json).not.toHaveBeenCalled();
     expect(req.user).toEqual({
       id: 1,
-      email: "test@example.com",
-      name: "Test User",
+      email: 'test@example.com',
+      name: 'Test User',
     });
   });
 
-  it("should return 401 if no token is provided", async () => {
+  it('should return 401 if no token is provided', async () => {
     // Arrange
     req.headers = {};
 
@@ -77,15 +73,15 @@ describe("Authentication Middleware", () => {
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: "No token provided",
+      error: 'No token provided',
     });
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("should return 401 if token is invalid", async () => {
+  it('should return 401 if token is invalid', async () => {
     // Arrange
     req.headers = {
-      authorization: "Bearer invalid.token",
+      authorization: 'Bearer invalid.token',
     };
 
     // Act
@@ -95,15 +91,15 @@ describe("Authentication Middleware", () => {
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: "Invalid token",
+      error: 'Invalid token',
     });
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("should return 401 if token format is invalid", async () => {
+  it('should return 401 if token format is invalid', async () => {
     // Arrange
     req.headers = {
-      authorization: "InvalidFormat",
+      authorization: 'InvalidFormat',
     };
 
     // Act
@@ -113,15 +109,15 @@ describe("Authentication Middleware", () => {
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: "Invalid token format",
+      error: 'Invalid token format',
     });
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("should return 401 if user not found", async () => {
+  it('should return 401 if user not found', async () => {
     // Arrange
     req.headers = {
-      authorization: "Bearer valid.token.123",
+      authorization: 'Bearer valid.token.123',
     };
 
     // Mock database to return no user
@@ -136,18 +132,18 @@ describe("Authentication Middleware", () => {
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: "User not found",
+      error: 'User not found',
     });
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("should handle database errors", async () => {
+  it('should handle database errors', async () => {
     // Arrange
     req.headers = {
-      authorization: "Bearer valid.token.123",
+      authorization: 'Bearer valid.token.123',
     };
     // Mock database to return an error
-    const dbError = new Error("Database error");
+    const dbError = new Error('Database error');
     (db.get as jest.Mock).mockImplementationOnce((query, params, callback) => {
       callback(dbError, null);
     });
@@ -159,7 +155,7 @@ describe("Authentication Middleware", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: "Internal server error",
+      error: 'Internal server error',
     });
     expect(next).not.toHaveBeenCalled();
   });

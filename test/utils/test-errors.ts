@@ -1,5 +1,5 @@
 // test/utils/test-errors.ts
-import { ValidationError } from "express-validator";
+import { ValidationError } from 'express-validator';
 
 interface TestValidationError {
   name: string;
@@ -18,17 +18,17 @@ export function createValidationError(
   }> = [],
 ): TestValidationError {
   return {
-    name: "ValidationError",
+    name: 'ValidationError',
     message,
     statusCode: 400,
     errors: errors.map(
-      (err) =>
+      err =>
         ({
-          type: "field",
+          type: 'field',
           msg: err.message,
           path: err.field,
-          value: err.value ?? "",
-          location: err.location ?? "body",
+          value: err.value ?? '',
+          location: err.location ?? 'body',
         }) as unknown as ValidationError,
     ),
   };

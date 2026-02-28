@@ -1,23 +1,23 @@
-import { Response, NextFunction } from "express";
-import { AuthRequest } from "../../src/types/index.js";
+import { Response, NextFunction } from 'express';
+import { AuthRequest } from '../../src/types/index.js';
 
 /**
  * Mock factory for creating AuthRequest objects in tests
  */
 export const createMockAuthRequest = (
   headers: Record<string, string> = {},
-  user?: AuthRequest["user"],
+  user?: AuthRequest['user'],
 ): AuthRequest => {
   const mockReq = {
     headers: {
-      authorization: "",
+      authorization: '',
       ...headers,
     },
     user,
     // Mock other Request properties as needed
-    method: "GET",
-    url: "/",
-    path: "/",
+    method: 'GET',
+    url: '/',
+    path: '/',
     query: {},
     params: {},
     body: {},
@@ -34,18 +34,18 @@ export const createMockAuthRequest = (
     fresh: false,
     stale: true,
     xhr: false,
-    ip: "127.0.0.1",
+    ip: '127.0.0.1',
     ips: [],
-    protocol: "http",
+    protocol: 'http',
     secure: false,
     subdomains: [],
-    originalUrl: "/",
-    baseUrl: "",
+    originalUrl: '/',
+    baseUrl: '',
     app: {} as any,
     res: {} as any,
     next: {} as any,
     route: {} as any,
-    httpVersion: "1.1",
+    httpVersion: '1.1',
     httpVersionMajor: 1,
     httpVersionMinor: 1,
     connection: {} as any,

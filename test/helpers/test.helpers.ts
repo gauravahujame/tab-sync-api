@@ -1,12 +1,10 @@
-import { Request, Response, NextFunction } from "express";
-import { testConfig } from "../config/test.config";
+import { Request, Response, NextFunction } from 'express';
+import { testConfig } from '../config/test.config';
 
 /**
  * Create a mock Express request object
  */
-export const mockRequest = (
-  options: Partial<Request> = {},
-): Partial<Request> => {
+export const mockRequest = (options: Partial<Request> = {}): Partial<Request> => {
   const req = {
     body: {},
     params: {},
@@ -94,15 +92,15 @@ export const mockJwt = {
   sign: (payload: unknown) => `mocked-jwt-token.${JSON.stringify(payload)}`,
 
   verify: (token: string) => {
-    if (!token || !token.startsWith("mocked-jwt-token")) {
-      throw new Error("Invalid token");
+    if (!token || !token.startsWith('mocked-jwt-token')) {
+      throw new Error('Invalid token');
     }
 
     try {
-      const payload = JSON.parse(token.split(".")[1]);
+      const payload = JSON.parse(token.split('.')[1]);
       return payload;
     } catch (e: unknown) {
-      throw new Error("Invalid token payload", { cause: e });
+      throw new Error('Invalid token payload', { cause: e });
     }
   },
 };
@@ -110,14 +108,13 @@ export const mockJwt = {
 /**
  * Wait for a specified number of milliseconds
  */
-export const wait = (ms: number) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+export const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Mock database error
  */
-export const mockDatabaseError = (error = "Database error") => {
+export const mockDatabaseError = (error = 'Database error') => {
   const err = new Error(error);
-  (err as unknown as { code: string }).code = "SQLITE_ERROR";
+  (err as unknown as { code: string }).code = 'SQLITE_ERROR';
   return err;
 };

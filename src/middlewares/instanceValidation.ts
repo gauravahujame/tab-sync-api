@@ -17,14 +17,10 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 export async function instanceValidationMiddleware(
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   // Skip validation for public endpoints (no auth required)
-  const publicPaths = [
-    '/api/v1/health',
-    '/api/v1/auth/validate',
-    '/api/v1/auth/register',
-  ];
+  const publicPaths = ['/api/v1/health', '/api/v1/auth/validate', '/api/v1/auth/register'];
 
   if (publicPaths.some(path => req.path.startsWith(path))) {
     return next();
@@ -36,14 +32,9 @@ export async function instanceValidationMiddleware(
   }
 
   // Only require instance ID for sync-related endpoints
-  const requiresInstanceId = [
-    '/api/v1/sync',
-    '/api/v1/sessions',
-  ];
+  const requiresInstanceId = ['/api/v1/sync', '/api/v1/sessions'];
 
-  const needsInstanceId = requiresInstanceId.some(path =>
-    req.path.startsWith(path)
-  );
+  const needsInstanceId = requiresInstanceId.some(path => req.path.startsWith(path));
 
   if (!needsInstanceId) {
     // Not a sync endpoint, skip validation

@@ -1,13 +1,13 @@
-import { describe, it, expect, jest, beforeEach } from "@jest/globals";
-import jwt from "jsonwebtoken";
-import { authMiddleware } from "../../../src/middlewares/auth";
-import { AuthRequest } from "../../../src/types/index";
-import { Response, NextFunction } from "express";
+import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import jwt from 'jsonwebtoken';
+import { authMiddleware } from '../../../src/middlewares/auth';
+import { AuthRequest } from '../../../src/types/index';
+import { Response, NextFunction } from 'express';
 
 // Mock JWT verify
-jest.mock("jsonwebtoken");
+jest.mock('jsonwebtoken');
 
-describe("Authentication Middleware", () => {
+describe('Authentication Middleware', () => {
   let req: AuthRequest;
   let res: Response;
   let next: NextFunction;
@@ -17,9 +17,9 @@ describe("Authentication Middleware", () => {
 
     // Simple mock request
     req = {
-      path: "/",
+      path: '/',
       headers: {
-        authorization: "",
+        authorization: '',
       },
       user: undefined,
     } as AuthRequest;
@@ -33,9 +33,9 @@ describe("Authentication Middleware", () => {
     next = jest.fn() as NextFunction;
   });
 
-  it("should allow access to public endpoints without token", async () => {
-    req.path = "/api/v1/health";
-    req.headers.authorization = "";
+  it('should allow access to public endpoints without token', async () => {
+    req.path = '/api/v1/health';
+    req.headers.authorization = '';
 
     await authMiddleware(req, res, next);
 
@@ -43,75 +43,75 @@ describe("Authentication Middleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("should return 401 when no authorization header", async () => {
-    req.headers.authorization = "";
+  it('should return 401 when no authorization header', async () => {
+    req.headers.authorization = '';
 
     await authMiddleware(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: "Authentication required. Please provide a valid Bearer token.",
+      error: 'Authentication required. Please provide a valid Bearer token.',
     });
     expect(next).not.toHaveBeenCalled();
   });
 
   it("should return 401 when authorization header doesn't start with Bearer", async () => {
-    req.headers.authorization = "Basic sometoken";
+    req.headers.authorization = 'Basic sometoken';
 
     await authMiddleware(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: "Authentication required. Please provide a valid Bearer token.",
+      error: 'Authentication required. Please provide a valid Bearer token.',
     });
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("should return 401 for invalid token", async () => {
+  it('should return 401 for invalid token', async () => {
     (jwt.verify as jest.Mock).mockImplementation(() => {
-      throw new Error("Invalid token");
+      throw new Error('Invalid token');
     });
 
-    req.headers.authorization = "Bearer invalid.token";
+    req.headers.authorization = 'Bearer invalid.token';
 
     await authMiddleware(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: "Invalid token signature",
+      error: 'Invalid token signature',
     });
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("should return 401 when token is missing user ID", async () => {
+  it('should return 401 when token is missing user ID', async () => {
     (jwt.verify as jest.Mock).mockReturnValue({
-      email: "test@example.com",
+      email: 'test@example.com',
       // missing id
     });
 
-    req.headers.authorization = "Bearer valid.token.without.id";
+    req.headers.authorization = 'Bearer valid.token.without.id';
 
     await authMiddleware(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: "Invalid token format: missing user ID",
+      error: 'Invalid token format: missing user ID',
     });
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("should call next() with valid token", async () => {
+  it('should call next() with valid token', async () => {
     (jwt.verify as jest.Mock).mockReturnValue({
       id: 1,
-      email: "test@example.com",
-      name: "Test User",
+      email: 'test@example.com',
+      name: 'Test User',
     });
 
-    req.headers.authorization = "Bearer valid.token.here";
+    req.headers.authorization = 'Bearer valid.token.here';
 
     await authMiddleware(req, res, next);
 
@@ -120,8 +120,8 @@ describe("Authentication Middleware", () => {
     expect(next).toHaveBeenCalled();
     expect(req.user).toEqual({
       id: 1,
-      email: "test@example.com",
-      name: "Test User",
+      email: 'test@example.com',
+      name: 'Test User',
     });
   });
 });

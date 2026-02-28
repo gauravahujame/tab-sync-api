@@ -10,8 +10,8 @@ const db = getDb();
  * List all users with snapshot counts
  */
 router.get('/users', async (_req: Request, res: Response) => {
-    try {
-        const users = await db.all(`
+  try {
+    const users = await db.all(`
       SELECT
         u.id,
         u.email,
@@ -27,17 +27,17 @@ router.get('/users', async (_req: Request, res: Response) => {
       ORDER BY u.id DESC
     `);
 
-        res.json({
-            success: true,
-            users,
-        });
-    } catch (error) {
-        logger.error('[ADMIN] Failed to list users', { error: (error as Error).message });
-        res.status(500).json({
-            success: false,
-            error: 'Failed to list users',
-        });
-    }
+    res.json({
+      success: true,
+      users,
+    });
+  } catch (error) {
+    logger.error('[ADMIN] Failed to list users', { error: (error as Error).message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to list users',
+    });
+  }
 });
 
 /**
@@ -45,15 +45,16 @@ router.get('/users', async (_req: Request, res: Response) => {
  * List all instance IDs for a user (based on snapshots)
  */
 router.get('/instances/:userId', async (req: Request, res: Response) => {
-    const userId = parseInt(req.params.userId, 10);
+  const userId = parseInt(req.params.userId, 10);
 
-    if (isNaN(userId)) {
-        res.status(400).json({ success: false, error: 'Invalid user ID' });
-        return;
-    }
+  if (isNaN(userId)) {
+    res.status(400).json({ success: false, error: 'Invalid user ID' });
+    return;
+  }
 
-    try {
-        const instances = await db.all(`
+  try {
+    const instances = await db.all(
+      `
       SELECT
         instance_id,
         COUNT(*) as snapshot_count,
@@ -65,19 +66,21 @@ router.get('/instances/:userId', async (req: Request, res: Response) => {
       WHERE user_id = ?
       GROUP BY instance_id
       ORDER BY last_snapshot_at DESC
-    `, [userId]);
+    `,
+      [userId],
+    );
 
-        res.json({
-            success: true,
-            instances,
-        });
-    } catch (error) {
-        logger.error('[ADMIN] Failed to list instances', { error: (error as Error).message, userId });
-        res.status(500).json({
-            success: false,
-            error: 'Failed to list instances',
-        });
-    }
+    res.json({
+      success: true,
+      instances,
+    });
+  } catch (error) {
+    logger.error('[ADMIN] Failed to list instances', { error: (error as Error).message, userId });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to list instances',
+    });
+  }
 });
 
 /**
@@ -85,20 +88,20 @@ router.get('/instances/:userId', async (req: Request, res: Response) => {
  * Get snapshot statistics for a user
  */
 router.get('/stats/:userId', async (req: Request, res: Response) => {
-    const userId = parseInt(req.params.userId, 10);
-    const instanceId = req.query.instanceId as string | undefined;
+  const userId = parseInt(req.params.userId, 10);
+  const instanceId = req.query.instanceId as string | undefined;
 
-    if (isNaN(userId)) {
-        res.status(400).json({ success: false, error: 'Invalid user ID' });
-        return;
-    }
+  if (isNaN(userId)) {
+    res.status(400).json({ success: false, error: 'Invalid user ID' });
+    return;
+  }
 
-    try {
-        let query: string;
-        let params: any[];
+  try {
+    let query: string;
+    let params: any[];
 
-        if (instanceId) {
-            query = `
+    if (instanceId) {
+      query = `
         SELECT
           COUNT(*) as total_snapshots,
           COUNT(DISTINCT instance_id) as instance_count,
@@ -110,9 +113,9 @@ router.get('/stats/:userId', async (req: Request, res: Response) => {
         FROM snapshots
         WHERE user_id = ? AND instance_id = ?
       `;
-            params = [userId, instanceId];
-        } else {
-            query = `
+      params = [userId, instanceId];
+    } else {
+      query = `
         SELECT
           COUNT(*) as total_snapshots,
           COUNT(DISTINCT instance_id) as instance_count,
@@ -124,25 +127,25 @@ router.get('/stats/:userId', async (req: Request, res: Response) => {
         FROM snapshots
         WHERE user_id = ?
       `;
-            params = [userId];
-        }
-
-        const stats = await db.get(query, params);
-
-        res.json({
-            success: true,
-            stats,
-        });
-    } catch (error) {
-        logger.error('[ADMIN] Stats query failed', {
-            error: (error as Error).message,
-            userId,
-        });
-        res.status(500).json({
-            success: false,
-            error: 'Failed to get snapshot statistics',
-        });
+      params = [userId];
     }
+
+    const stats = await db.get(query, params);
+
+    res.json({
+      success: true,
+      stats,
+    });
+  } catch (error) {
+    logger.error('[ADMIN] Stats query failed', {
+      error: (error as Error).message,
+      userId,
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get snapshot statistics',
+    });
+  }
 });
 
 export const adminRouter = router;

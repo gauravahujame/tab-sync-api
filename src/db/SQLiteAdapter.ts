@@ -22,7 +22,7 @@ export class SQLiteAdapter extends BaseDatabaseAdapter {
     }
 
     console.log('🔌 Connecting to SQLite database...');
-    this.db = new sqlite3.Database(databasePath, (err) => {
+    this.db = new sqlite3.Database(databasePath, err => {
       if (err) {
         console.error('❌ Failed to connect to SQLite database:', err.message);
         logger.error('Failed to connect to SQLite database:', err.message);
@@ -32,7 +32,7 @@ export class SQLiteAdapter extends BaseDatabaseAdapter {
       console.log('✅ SQLite database connected successfully');
 
       // Enable foreign key constraints
-      this.db.run('PRAGMA foreign_keys = ON', (pragmaErr) => {
+      this.db.run('PRAGMA foreign_keys = ON', pragmaErr => {
         if (pragmaErr) {
           logger.error('Failed to enable foreign keys:', pragmaErr.message);
         }
@@ -98,7 +98,7 @@ export class SQLiteAdapter extends BaseDatabaseAdapter {
 
   async beginTransaction(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.run('BEGIN TRANSACTION', (err) => {
+      this.db.run('BEGIN TRANSACTION', err => {
         if (err) reject(err);
         else resolve();
       });
@@ -107,7 +107,7 @@ export class SQLiteAdapter extends BaseDatabaseAdapter {
 
   async commit(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.run('COMMIT', (err) => {
+      this.db.run('COMMIT', err => {
         if (err) reject(err);
         else resolve();
       });
@@ -116,7 +116,7 @@ export class SQLiteAdapter extends BaseDatabaseAdapter {
 
   async rollback(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.run('ROLLBACK', (err) => {
+      this.db.run('ROLLBACK', err => {
         if (err) reject(err);
         else resolve();
       });
@@ -125,7 +125,7 @@ export class SQLiteAdapter extends BaseDatabaseAdapter {
 
   async close(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.close((err) => {
+      this.db.close(err => {
         if (err) reject(err);
         else resolve();
       });
@@ -134,7 +134,7 @@ export class SQLiteAdapter extends BaseDatabaseAdapter {
 
   async exec(sql: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.exec(sql, (err) => {
+      this.db.exec(sql, err => {
         if (err) reject(err);
         else resolve();
       });
@@ -144,7 +144,7 @@ export class SQLiteAdapter extends BaseDatabaseAdapter {
   async prepare(sql: string): Promise<PreparedStatement> {
     const convertedSql = convertPlaceholders(sql, 'sqlite');
     return new Promise((resolve, reject) => {
-      const stmt = this.db.prepare(convertedSql, (err) => {
+      const stmt = this.db.prepare(convertedSql, err => {
         if (err) {
           reject(err);
         } else {
@@ -202,7 +202,7 @@ class SQLitePreparedStatement implements PreparedStatement {
 
   async finalize(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.stmt.finalize((err) => {
+      this.stmt.finalize(err => {
         if (err) reject(err);
         else resolve();
       });

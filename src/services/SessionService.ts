@@ -17,7 +17,7 @@ export class SessionService {
       windows?: any[];
       totalTabs?: number;
       totalWindows?: number;
-    }
+    },
   ): Promise<any> {
     const sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -206,7 +206,7 @@ export class SessionService {
    */
   async listSessions(
     userId: number,
-    options: { limit?: number; offset?: number } = {}
+    options: { limit?: number; offset?: number } = {},
   ): Promise<any> {
     const limit = Math.min(options.limit || 50, 100);
     const offset = options.offset || 0;
@@ -246,7 +246,7 @@ export class SessionService {
       name?: string;
       description?: string;
       tags?: string[];
-    }
+    },
   ): Promise<void> {
     logger.info('[SESSION:SERVICE] Updating session', { sessionId, userId });
 
@@ -296,10 +296,10 @@ export class SessionService {
     logger.info('[SESSION:SERVICE] Deleting session', { sessionId, userId });
 
     try {
-      await this.db.run(
-        `DELETE FROM sessions WHERE user_id = ? AND session_id = ?`,
-        [userId, sessionId],
-      );
+      await this.db.run(`DELETE FROM sessions WHERE user_id = ? AND session_id = ?`, [
+        userId,
+        sessionId,
+      ]);
 
       logger.info('[SESSION:SERVICE] Session deleted', { sessionId });
     } catch (error) {
@@ -314,11 +314,7 @@ export class SessionService {
   /**
    * Batch create sessions
    */
-  async batchCreateSessions(
-    userId: number,
-    instanceId: string,
-    sessions: any[]
-  ): Promise<any> {
+  async batchCreateSessions(userId: number, instanceId: string, sessions: any[]): Promise<any> {
     logger.info('[SESSION:SERVICE] Batch creating sessions', {
       userId,
       count: sessions.length,

@@ -1,8 +1,8 @@
-import express from "express";
-import jwt from "jsonwebtoken";
-import { config } from "../config.js";
-import { getDb } from "../db.js";
-import logger from "../utils/logger.js";
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import { config } from '../config.js';
+import { getDb } from '../db.js';
+import logger from '../utils/logger.js';
 
 export const authRouter = express.Router();
 
@@ -47,17 +47,17 @@ export const authRouter = express.Router();
  *                   type: string
  *                   example: "Invalid or expired token"
  */
-authRouter.get("/validate", async (req, res) => {
+authRouter.get('/validate', async (req, res) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({
       valid: false,
-      error: "No token provided",
+      error: 'No token provided',
     });
   }
 
-  const token = authHeader.split(" ")[1];
+  const token = authHeader.split(' ')[1];
 
   try {
     const decoded = jwt.verify(token, config.jwtSecret) as jwt.JwtPayload;
@@ -69,7 +69,7 @@ authRouter.get("/validate", async (req, res) => {
     if (!userInfo.id) {
       return res.status(401).json({
         valid: false,
-        error: "Invalid token format: missing user ID",
+        error: 'Invalid token format: missing user ID',
       });
     }
 
@@ -87,7 +87,7 @@ authRouter.get("/validate", async (req, res) => {
         });
         return res.status(401).json({
           valid: false,
-          error: "User not found or has been deleted",
+          error: 'User not found or has been deleted',
         });
       }
 
@@ -97,9 +97,7 @@ authRouter.get("/validate", async (req, res) => {
           id: user.id,
           email: user.email,
           name: user.name,
-          expiresIn: exp
-            ? Math.floor(exp - Date.now() / 1000) + " seconds"
-            : "never",
+          expiresIn: exp ? Math.floor(exp - Date.now() / 1000) + ' seconds' : 'never',
         },
       });
     } catch (dbErr) {
@@ -109,16 +107,16 @@ authRouter.get("/validate", async (req, res) => {
       });
       return res.status(500).json({
         valid: false,
-        error: "Database error",
+        error: 'Database error',
       });
     }
   } catch (error) {
-    let errorMessage = "Invalid token";
+    let errorMessage = 'Invalid token';
 
     if (error instanceof jwt.TokenExpiredError) {
-      errorMessage = "Token has expired";
+      errorMessage = 'Token has expired';
     } else if (error instanceof jwt.JsonWebTokenError) {
-      errorMessage = "Invalid token";
+      errorMessage = 'Invalid token';
     }
 
     logger.warn('[AUTH:VALIDATE] Token verification failed', {
@@ -188,7 +186,7 @@ authRouter.post('/register', async (req, res) => {
     // Check if user exists
     const existingUser = await db.get<{ id: number; email: string; name: string }>(
       'SELECT id, email, name FROM users WHERE email = ? LIMIT 1',
-      [email]
+      [email],
     );
 
     let userId: number;
@@ -200,7 +198,7 @@ authRouter.post('/register', async (req, res) => {
       // Token will be updated after we get the ID
       const result = await db.run(
         'INSERT INTO users (name, email, token, browser_name) VALUES (?, ?, ?, ?)',
-        [name, email, '', browserName]
+        [name, email, '', browserName],
       );
       if (!result.lastID) {
         throw new Error('Failed to create user');
@@ -222,10 +220,12 @@ authRouter.post('/register', async (req, res) => {
     });
 
     // Update user with new token
-    await db.run(
-      'UPDATE users SET token = ?, name = ?, browser_name = ? WHERE id = ?',
-      [token, name, browserName, userId]
-    );
+    await db.run('UPDATE users SET token = ?, name = ?, browser_name = ? WHERE id = ?', [
+      token,
+      name,
+      browserName,
+      userId,
+    ]);
 
     logger.info(`[AUTH:REGISTER] User registered: ${email} (ID: ${userId})`);
 
@@ -239,7 +239,6 @@ authRouter.post('/register', async (req, res) => {
         browserName,
       },
     });
-
   } catch (error) {
     logger.error('[AUTH:REGISTER] Registration failed', {
       error: (error as Error).message,
@@ -253,4 +252,3 @@ authRouter.post('/register', async (req, res) => {
 });
 
 export default authRouter;
-

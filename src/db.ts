@@ -16,7 +16,7 @@ const dbAdapter = getDatabase();
 
 // Promise that resolves when schema is ready
 let schemaReadyResolve: () => void;
-export const schemaReady = new Promise<void>((resolve) => {
+export const schemaReady = new Promise<void>(resolve => {
   schemaReadyResolve = resolve;
 });
 
@@ -74,9 +74,7 @@ export function getRawDb(): any {
 
 // Export adapter for backward compatibility
 // Legacy code uses `db` directly for sqlite3 operations
-export const db = dbAdapter instanceof SQLiteAdapter 
-  ? dbAdapter.getRawDatabase() 
-  : dbAdapter;
+export const db = dbAdapter instanceof SQLiteAdapter ? dbAdapter.getRawDatabase() : dbAdapter;
 
 // Export close function
 export { closeDatabase };

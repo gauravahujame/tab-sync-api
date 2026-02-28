@@ -120,7 +120,7 @@ export abstract class BaseDatabaseAdapter implements IDatabaseAdapter {
   protected readyResolve!: () => void;
 
   constructor() {
-    this.readyPromise = new Promise((resolve) => {
+    this.readyPromise = new Promise(resolve => {
       this.readyResolve = resolve;
     });
   }

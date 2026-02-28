@@ -1,9 +1,9 @@
-import { beforeAll, afterAll, describe, it, expect, jest } from "@jest/globals";
-import { clearDatabase, createTestUser } from "../utils/test-utils.js";
-import { createTestClient } from "../utils/test-client.js";
+import { beforeAll, afterAll, describe, it, expect, jest } from '@jest/globals';
+import { clearDatabase, createTestUser } from '../utils/test-utils.js';
+import { createTestClient } from '../utils/test-client.js';
 
 // Mock the database for auth tests
-jest.mock("../../src/db.js", () => {
+jest.mock('../../src/db.js', () => {
   const mockDb = {
     run: jest.fn(),
     get: jest.fn(),
@@ -12,12 +12,12 @@ jest.mock("../../src/db.js", () => {
   return { db: mockDb };
 });
 
-describe("Authentication API", () => {
+describe('Authentication API', () => {
   const testUser = {
-    email: "test@example.com",
-    name: "Test User",
-    token: "test-token-123",
-    browserName: "test-browser",
+    email: 'test@example.com',
+    name: 'Test User',
+    token: 'test-token-123',
+    browserName: 'test-browser',
   };
 
   // Declare client variable at the suite level
@@ -35,62 +35,56 @@ describe("Authentication API", () => {
     await clearDatabase();
   });
 
-  describe("GET /api/v1/auth/validate", () => {
-    it("should validate a valid token", async () => {
+  describe('GET /api/v1/auth/validate', () => {
+    it('should validate a valid token', async () => {
       const client = createTestClient(1, testUser.email);
 
-      const response = await client.get("/api/v1/auth/validate");
+      const response = await client.get('/api/v1/auth/validate');
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("valid", true);
-      expect(response.body.user).toHaveProperty("email", testUser.email);
+      expect(response.body).toHaveProperty('valid', true);
+      expect(response.body.user).toHaveProperty('email', testUser.email);
     });
 
-    it("should reject requests without a token", async () => {
-      const response = await client.unauthenticated.get(
-        "/api/v1/auth/validate",
-      );
+    it('should reject requests without a token', async () => {
+      const response = await client.unauthenticated.get('/api/v1/auth/validate');
 
       expect(response.status).toBe(401);
-      expect(response.body).toHaveProperty("valid", false);
-      expect(response.body).toHaveProperty("error");
+      expect(response.body).toHaveProperty('valid', false);
+      expect(response.body).toHaveProperty('error');
     });
 
-    it("should reject invalid tokens", async () => {
+    it('should reject invalid tokens', async () => {
       const response = await client
-        .get("/api/v1/auth/validate")
-        .set("Authorization", "Bearer invalid-token");
+        .get('/api/v1/auth/validate')
+        .set('Authorization', 'Bearer invalid-token');
 
       expect(response.status).toBe(401);
-      expect(response.body).toHaveProperty("valid", false);
+      expect(response.body).toHaveProperty('valid', false);
     });
   });
 
-  describe("POST /api/v1/auth/login", () => {
-    it("should authenticate with valid credentials", async () => {
-      const response = await client.unauthenticated
-        .post("/api/v1/auth/login")
-        .send({
-          email: testUser.email,
-          token: testUser.token,
-        });
+  describe('POST /api/v1/auth/login', () => {
+    it('should authenticate with valid credentials', async () => {
+      const response = await client.unauthenticated.post('/api/v1/auth/login').send({
+        email: testUser.email,
+        token: testUser.token,
+      });
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("token");
-      expect(response.body).toHaveProperty("user");
+      expect(response.body).toHaveProperty('token');
+      expect(response.body).toHaveProperty('user');
       expect(response.body.user.email).toBe(testUser.email);
     });
 
-    it("should reject invalid credentials", async () => {
-      const response = await client.unauthenticated
-        .post("/api/v1/auth/login")
-        .send({
-          email: testUser.email,
-          token: "wrong-password",
-        });
+    it('should reject invalid credentials', async () => {
+      const response = await client.unauthenticated.post('/api/v1/auth/login').send({
+        email: testUser.email,
+        token: 'wrong-password',
+      });
 
       expect(response.status).toBe(401);
-      expect(response.body).toHaveProperty("error");
+      expect(response.body).toHaveProperty('error');
     });
   });
 });

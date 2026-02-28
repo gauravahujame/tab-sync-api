@@ -1,20 +1,16 @@
-import { NextFunction, Response } from "express";
-import jwt from "jsonwebtoken";
-import { config } from "../config.js";
-import { db } from "../db.js";
-import { AuthRequest, JWTPayload } from "../types/index.js";
-import logger from "../utils/logger.js";
+import { NextFunction, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import { config } from '../config.js';
+import { db } from '../db.js';
+import { AuthRequest, JWTPayload } from '../types/index.js';
+import logger from '../utils/logger.js';
 
-export async function authMiddleware(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) {
+export async function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
   // Skip auth for public endpoints
   const publicPaths = [
-    "/api/v1/health",
-    "/api/v1/auth/validate", // This endpoint handles its own auth logic
-    "/api/v1/auth/register", // Public registration endpoint
+    '/api/v1/health',
+    '/api/v1/auth/validate', // This endpoint handles its own auth logic
+    '/api/v1/auth/register', // Public registration endpoint
   ];
 
   if (publicPaths.includes(req.path)) {
@@ -23,14 +19,14 @@ export async function authMiddleware(
 
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({
       success: false,
-      error: "Authentication required. Please provide a valid Bearer token.",
+      error: 'Authentication required. Please provide a valid Bearer token.',
     });
   }
 
-  const token = authHeader.split(" ")[1];
+  const token = authHeader.split(' ')[1];
 
   try {
     const decoded = jwt.verify(token, config.jwtSecret);
@@ -41,12 +37,12 @@ export async function authMiddleware(
     if (!decodedUser.id) {
       return res.status(401).json({
         success: false,
-        error: "Invalid token format: missing user ID",
+        error: 'Invalid token format: missing user ID',
       });
     }
 
     // âœ" Check if user still exists in database
-    return new Promise<void>((resolve) => {
+    return new Promise<void>(resolve => {
       db.get(
         'SELECT id, email, name FROM users WHERE id = ? LIMIT 1',
         [decodedUser.id],
@@ -58,21 +54,18 @@ export async function authMiddleware(
             });
             res.status(500).json({
               success: false,
-              error: "Authentication failed",
+              error: 'Authentication failed',
             });
             return resolve();
           }
 
           if (!user) {
-            logger.warn(
-              '[AUTH:MIDDLEWARE] User deleted but token still valid',
-              {
-                userId: decodedUser.id,
-              },
-            );
+            logger.warn('[AUTH:MIDDLEWARE] User deleted but token still valid', {
+              userId: decodedUser.id,
+            });
             res.status(401).json({
               success: false,
-              error: "User not found or has been deleted",
+              error: 'User not found or has been deleted',
             });
             return resolve();
           }
@@ -94,12 +87,12 @@ export async function authMiddleware(
       );
     });
   } catch (error) {
-    let errorMessage = "Invalid token";
+    let errorMessage = 'Invalid token';
 
     if (error instanceof jwt.TokenExpiredError) {
-      errorMessage = "Token has expired";
+      errorMessage = 'Token has expired';
     } else if (error instanceof jwt.JsonWebTokenError) {
-      errorMessage = "Invalid token signature";
+      errorMessage = 'Invalid token signature';
     }
 
     return res.status(401).json({

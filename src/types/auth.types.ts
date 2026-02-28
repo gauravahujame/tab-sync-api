@@ -1,5 +1,4 @@
 // Using any to avoid Express module resolution issues in tests
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
  * User interface representing authenticated user data
