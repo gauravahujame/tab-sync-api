@@ -48,13 +48,13 @@ export const clearDatabase = async (): Promise<void> => {
     'session_restorations',
     'snapshots',
     'users',
-    'tabs'
+    'tabs',
   ];
 
   for (const table of tables) {
     try {
       await runAsync(`DELETE FROM ${table}`);
-    } catch (e) {
+    } catch {
       // Ignore missing tables
     }
   }

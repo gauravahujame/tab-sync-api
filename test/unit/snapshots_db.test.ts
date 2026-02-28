@@ -32,7 +32,6 @@ describe('Snapshot Tables', () => {
       expect(tableInfo.sql).toContain('FOREIGN KEY(user_id) REFERENCES users(id)');
     });
 
-
     it('should create indexes for snapshots table', async () => {
       const _indexes = await getAsync(
         "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='snapshots'",

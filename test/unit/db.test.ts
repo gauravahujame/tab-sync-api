@@ -51,6 +51,5 @@ describe('Database Module', () => {
         ]),
       ).rejects.toBeDefined();
     });
-
   });
 });
