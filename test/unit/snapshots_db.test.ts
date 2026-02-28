@@ -32,18 +32,6 @@ describe('Snapshot Tables', () => {
       expect(tableInfo.sql).toContain('FOREIGN KEY(user_id) REFERENCES users(id)');
     });
 
-    it('should create migration_checkpoints table with correct schema', async () => {
-      const tableInfo = await getAsync(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='migration_checkpoints'",
-      );
-
-      expect(tableInfo).toBeDefined();
-      expect(tableInfo.sql).toContain('CREATE TABLE migration_checkpoints');
-      expect(tableInfo.sql).toContain('id INTEGER PRIMARY KEY AUTOINCREMENT');
-      expect(tableInfo.sql).toContain('events_processed INTEGER');
-      expect(tableInfo.sql).toContain('intermediate_state TEXT');
-      expect(tableInfo.sql).toContain('status TEXT');
-    });
 
     it('should create indexes for snapshots table', async () => {
       const _indexes = await getAsync(

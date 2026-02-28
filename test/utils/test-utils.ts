@@ -41,8 +41,23 @@ export const clearDatabase = async (): Promise<void> => {
   const db = getDb();
   const dialect = db.getDialect();
 
-  await runAsync('DELETE FROM tabs');
-  await runAsync('DELETE FROM users');
+  const tables = [
+    'session_tabs',
+    'session_windows',
+    'sessions',
+    'session_restorations',
+    'snapshots',
+    'users',
+    'tabs'
+  ];
+
+  for (const table of tables) {
+    try {
+      await runAsync(`DELETE FROM ${table}`);
+    } catch (e) {
+      // Ignore missing tables
+    }
+  }
 
   // Reset autoincrement counters (SQLite-specific)
   if (dialect === 'sqlite') {
