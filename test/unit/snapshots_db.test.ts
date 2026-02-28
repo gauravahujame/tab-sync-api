@@ -3,7 +3,7 @@ import { clearDatabase } from '../utils/test-utils.js';
 import { db } from '../../src/db.js';
 import { promisify } from 'util';
 
-const runAsync = promisify(db.run.bind(db));
+// const runAsync = promisify(db.run.bind(db));
 const getAsync = promisify(db.get.bind(db));
 
 describe('Snapshot Tables', () => {

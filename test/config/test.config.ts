@@ -10,7 +10,7 @@ process.env.JWT_SECRET = 'test-secret';
 process.env.PORT = '0'; // Use random port for tests
 
 // Mock logger to prevent console output during tests
-jest.mock('../src/utils/logger', () => ({
+jest.mock('../../src/utils/logger', () => ({
   error: jest.fn(),
   warn: jest.fn(),
   info: jest.fn(),

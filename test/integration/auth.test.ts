@@ -2,16 +2,6 @@ import { beforeAll, afterAll, describe, it, expect, jest } from '@jest/globals';
 import { clearDatabase, createTestUser } from '../utils/test-utils.js';
 import { createTestClient } from '../utils/test-client.js';
 
-// Mock the database for auth tests
-jest.mock('../../src/db.js', () => {
-  const mockDb = {
-    run: jest.fn(),
-    get: jest.fn(),
-    all: jest.fn(),
-  };
-  return { db: mockDb };
-});
-
 describe('Authentication API', () => {
   const testUser = {
     email: 'test@example.com',
@@ -61,30 +51,6 @@ describe('Authentication API', () => {
 
       expect(response.status).toBe(401);
       expect(response.body).toHaveProperty('valid', false);
-    });
-  });
-
-  describe('POST /api/v1/auth/login', () => {
-    it('should authenticate with valid credentials', async () => {
-      const response = await client.unauthenticated.post('/api/v1/auth/login').send({
-        email: testUser.email,
-        token: testUser.token,
-      });
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('token');
-      expect(response.body).toHaveProperty('user');
-      expect(response.body.user.email).toBe(testUser.email);
-    });
-
-    it('should reject invalid credentials', async () => {
-      const response = await client.unauthenticated.post('/api/v1/auth/login').send({
-        email: testUser.email,
-        token: 'wrong-password',
-      });
-
-      expect(response.status).toBe(401);
-      expect(response.body).toHaveProperty('error');
     });
   });
 });

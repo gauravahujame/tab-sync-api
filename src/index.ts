@@ -180,12 +180,14 @@ async function startServer() {
   }
 }
 
-// Start the server
-console.log('🚀 Starting Tab Sync API server...');
-startServer().catch(error => {
-  console.error('❌ Failed to start server:', error);
-  process.exit(1);
-});
+// Start the server only if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+  console.log('🚀 Starting Tab Sync API server...');
+  startServer().catch(error => {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  });
+}
 
 // Graceful shutdown handler
 const shutdown = (signal: string) => {

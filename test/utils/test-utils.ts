@@ -1,13 +1,15 @@
-import { getDb } from '../../src/db.js';
+import { getDb, schemaReady } from '../../src/db.js';
 import jwt from 'jsonwebtoken';
 
-// Get the database adapter
-const db = getDb();
+export const waitForSchema = async () => {
+  await schemaReady;
+};
 
 export const runAsync = async (
   sql: string,
   params: unknown[] = [],
 ): Promise<{ lastID: number; changes: number }> => {
+  const db = getDb();
   const result = await db.run(sql, params as any[]);
   return {
     lastID: result.lastID ?? 0,
@@ -19,6 +21,7 @@ export const getAsync = async <T = Record<string, unknown>>(
   sql: string,
   params: unknown[] = [],
 ): Promise<T | undefined> => {
+  const db = getDb();
   return db.get<T>(sql, params as any[]);
 };
 
@@ -26,6 +29,7 @@ export const allAsync = async <T = Record<string, unknown>>(
   sql: string,
   params: unknown[] = [],
 ): Promise<T[]> => {
+  const db = getDb();
   return db.all<T>(sql, params as any[]);
 };
 
@@ -33,6 +37,8 @@ export const allAsync = async <T = Record<string, unknown>>(
  * Clears all data from the test database
  */
 export const clearDatabase = async (): Promise<void> => {
+  await waitForSchema();
+  const db = getDb();
   const dialect = db.getDialect();
 
   await runAsync('DELETE FROM tabs');
@@ -137,8 +143,10 @@ export const getUserTabs = async (userId: number) => {
 /**
  * Generates a JWT token for testing
  */
+import { config } from '../../src/config.js';
+
 export const generateTestToken = (userId: number, email: string, browserName: string): string => {
-  return jwt.sign({ userId, email, browserName }, process.env.JWT_SECRET || 'test-secret', {
+  return jwt.sign({ id: userId, email, browserName }, config.jwtSecret, {
     expiresIn: '1h',
   });
 };

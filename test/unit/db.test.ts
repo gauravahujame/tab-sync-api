@@ -1,10 +1,6 @@
 import { beforeAll, afterAll, describe, it, expect } from '@jest/globals';
-import { clearDatabase } from '../utils/test-utils.js';
+import { clearDatabase, runAsync, getAsync, allAsync } from '../utils/test-utils.js';
 import { db } from '../../src/db.js';
-import { promisify } from 'util';
-
-const runAsync = promisify(db.run.bind(db));
-const getAsync = promisify(db.get.bind(db));
 
 describe('Database Module', () => {
   beforeAll(async () => {
@@ -19,36 +15,34 @@ describe('Database Module', () => {
 
   describe('Table Creation', () => {
     it('should create users table with correct schema', async () => {
-      const tableInfo = await getAsync(
+      const tableInfo = await getAsync<{ sql: string }>(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='users'",
       );
 
       expect(tableInfo).toBeDefined();
-      expect(tableInfo.sql).toContain('CREATE TABLE users');
-      expect(tableInfo.sql).toContain('id INTEGER PRIMARY KEY AUTOINCREMENT');
-      expect(tableInfo.sql).toContain('email TEXT UNIQUE NOT NULL');
-      expect(tableInfo.sql).toContain('token TEXT');
+      expect(tableInfo?.sql).toContain('CREATE TABLE users');
+      expect(tableInfo?.sql).toContain('id INTEGER PRIMARY KEY AUTOINCREMENT');
+      expect(tableInfo?.sql).toContain('email TEXT UNIQUE NOT NULL');
+      expect(tableInfo?.sql).toContain('token TEXT');
     });
 
     it('should create tabs table with correct schema', async () => {
-      const tableInfo = await getAsync(
+      const tableInfo = await getAsync<{ sql: string }>(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='tabs'",
       );
 
       expect(tableInfo).toBeDefined();
-      expect(tableInfo.sql).toContain('CREATE TABLE tabs');
-      expect(tableInfo.sql).toContain('id INTEGER PRIMARY KEY AUTOINCREMENT');
-      expect(tableInfo.sql).toContain('url TEXT NOT NULL');
-      expect(tableInfo.sql).toContain('user_id INTEGER');
-      expect(tableInfo.sql).toContain('FOREIGN KEY(user_id) REFERENCES users(id)');
+      expect(tableInfo?.sql).toContain('CREATE TABLE tabs');
+      expect(tableInfo?.sql).toContain('id INTEGER PRIMARY KEY AUTOINCREMENT');
+      expect(tableInfo?.sql).toContain('url TEXT NOT NULL');
+      expect(tableInfo?.sql).toContain('user_id INTEGER');
+      expect(tableInfo?.sql).toContain('FOREIGN KEY(user_id) REFERENCES users(id)');
     });
 
     it('should create indexes for better query performance', async () => {
-      const indexes = await getAsync("SELECT name FROM sqlite_master WHERE type='index'");
+      const indexes = await allAsync("SELECT name FROM sqlite_master WHERE type='index'");
 
-      const indexNames = Array.isArray(indexes)
-        ? indexes.map((i: unknown) => (i as { name: string }).name)
-        : [indexes?.name].filter(Boolean);
+      const indexNames = indexes.map((i: any) => i.name);
 
       expect(indexNames).toContain('idx_users_email');
       expect(indexNames).toContain('idx_tabs_user_id');
@@ -73,15 +67,17 @@ describe('Database Module', () => {
         'test-token',
       ]);
 
-      const user = await getAsync('SELECT id FROM users WHERE email = ?', ['test@example.com']);
+      const user = await getAsync<{ id: number }>('SELECT id FROM users WHERE email = ?', [
+        'test@example.com',
+      ]);
+      if (!user) throw new Error('User not found');
 
-      await expect(
-        runAsync('INSERT INTO tabs (url, window_id, user_id) VALUES (?, ?, ?)', [
-          'https://test.com',
-          1,
-          user.id,
-        ]),
-      ).resolves.toBeDefined();
+      const result = await runAsync('INSERT INTO tabs (url, window_id, user_id) VALUES (?, ?, ?)', [
+        'https://test.com',
+        1,
+        user.id,
+      ]);
+      expect(result).toBeDefined();
     });
   });
 
@@ -104,37 +100,38 @@ describe('Database Module', () => {
     });
 
     it('should enforce unique constraint for tabs', async () => {
-      const user = await getAsync('SELECT id FROM users WHERE email = ?', ['unique@example.com']);
+      const user = await getAsync<{ id: number }>('SELECT id FROM users WHERE email = ?', [
+        'unique@example.com',
+      ]);
+      if (!user) throw new Error('User not found');
 
       // First insert should work
-      await expect(
-        runAsync(
-          `INSERT INTO tabs 
-           (url, window_id, client_tab_id, user_id, browser_name) 
-           VALUES (?, ?, ?, ?, ?)`,
-          ['https://unique-tab.com', 1, 1001, user.id, 'test-browser'],
-        ),
-      ).resolves.toBeDefined();
+      const result = await runAsync(
+        `INSERT INTO tabs
+         (url, window_id, client_tab_id, user_id, browser_name)
+         VALUES (?, ?, ?, ?, ?)`,
+        ['https://unique-tab.com', 1, 1001, user.id, 'test-browser'],
+      );
+      expect(result).toBeDefined();
 
       // Duplicate insert should fail
       await expect(
         runAsync(
-          `INSERT INTO tabs 
-           (url, window_id, client_tab_id, user_id, browser_name) 
+          `INSERT INTO tabs
+           (url, window_id, client_tab_id, user_id, browser_name)
            VALUES (?, ?, ?, ?, ?)`,
           ['https://unique-tab.com', 1, 1001, user.id, 'test-browser'],
         ),
       ).rejects.toBeDefined();
 
       // Different client_tab_id should work
-      await expect(
-        runAsync(
-          `INSERT INTO tabs 
-           (url, window_id, client_tab_id, user_id, browser_name) 
-           VALUES (?, ?, ?, ?, ?)`,
-          ['https://unique-tab.com', 1, 1002, user.id, 'test-browser'],
-        ),
-      ).resolves.toBeDefined();
+      const result2 = await runAsync(
+        `INSERT INTO tabs
+         (url, window_id, client_tab_id, user_id, browser_name)
+         VALUES (?, ?, ?, ?, ?)`,
+        ['https://unique-tab.com', 1, 1002, user.id, 'test-browser'],
+      );
+      expect(result2).toBeDefined();
     });
   });
 });

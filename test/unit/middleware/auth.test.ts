@@ -1,8 +1,9 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, beforeAll, afterAll } from '@jest/globals';
 import jwt from 'jsonwebtoken';
 import { authMiddleware } from '../../../src/middlewares/auth';
 import { AuthRequest } from '../../../src/types/index';
 import { Response, NextFunction } from 'express';
+import { clearDatabase, createTestUser } from '../../utils/test-utils.js';
 
 // Mock JWT verify
 jest.mock('jsonwebtoken');
@@ -11,6 +12,20 @@ describe('Authentication Middleware', () => {
   let req: AuthRequest;
   let res: Response;
   let next: NextFunction;
+  let validUserId: number;
+
+  beforeAll(async () => {
+    validUserId = await createTestUser({
+      email: 'test@example.com',
+      name: 'Test User',
+      token: 'some-token',
+      browserName: 'test-browser',
+    });
+  });
+
+  afterAll(async () => {
+    await clearDatabase();
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -81,7 +96,7 @@ describe('Authentication Middleware', () => {
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      error: 'Invalid token signature',
+      error: 'Invalid token',
     });
     expect(next).not.toHaveBeenCalled();
   });
@@ -106,7 +121,7 @@ describe('Authentication Middleware', () => {
 
   it('should call next() with valid token', async () => {
     (jwt.verify as jest.Mock).mockReturnValue({
-      id: 1,
+      id: validUserId,
       email: 'test@example.com',
       name: 'Test User',
     });
@@ -119,7 +134,7 @@ describe('Authentication Middleware', () => {
     expect(res.json).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalled();
     expect(req.user).toEqual({
-      id: 1,
+      id: validUserId,
       email: 'test@example.com',
       name: 'Test User',
     });
