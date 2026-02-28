@@ -34,6 +34,13 @@ jobs:
           # We will just depend on the default CLEAN_URL which is gitea:3000
           # Or if needed we can route to host.docker.internal, but typically gitea is correct on custom networks.
 
+          # Fix for internal hostname (macOS host /etc/hosts) not resolving inside Docker VM
+          # If host is 'gitea', switch to 'host.docker.internal' so Docker Daemon reaches Mac host
+          if [[ "$CLEAN_URL" == "gitea"* ]]; then
+            echo "Fixing internal hostname: changing $CLEAN_URL to host.docker.internal variant"
+            CLEAN_URL="host.docker.internal${CLEAN_URL#gitea}"
+          fi
+
           echo "Registry Address: $CLEAN_URL"
           echo "registry_address=$CLEAN_URL" >> "$GITHUB_OUTPUT"
           echo "REGISTRY=$CLEAN_URL" >> "$GITHUB_ENV"
