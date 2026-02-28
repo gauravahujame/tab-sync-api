@@ -1,12 +1,12 @@
 name: Build and Deploy
+
 on:
   push:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
 env:
-  # Use the Gitea internal references
-  REGISTRY: ${{ gitea.server_url || github.server_url }}
+  REGISTRY: ${{ github.server_url }}
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
@@ -25,13 +25,12 @@ jobs:
       - name: Setup Registry URL
         id: registry_setup
         run: |
-          # Get the raw URL
-          RAW_URL="${{ gitea.server_url || github.server_url }}"
+          RAW_URL="${{ github.server_url }}"
 
           # Strip protocol (http:// or https://)
           CLEAN_URL=$(echo "$RAW_URL" | sed -E 's|^https?://||')
 
-          # Fix for 'gitea' hostname not resolving in Docker
+          # Fix for internal hostname not resolving inside Docker build context
           # If host is 'gitea', switch to 'localhost' to use the runner's network stack
           if [[ "$CLEAN_URL" == "gitea"* ]]; then
             echo "Fixing internal hostname: changing $CLEAN_URL to localhost variant"
@@ -39,16 +38,12 @@ jobs:
           fi
 
           echo "Registry Address: $CLEAN_URL"
-
-          # Output for other jobs
           echo "registry_address=$CLEAN_URL" >> "$GITHUB_OUTPUT"
-
-          # Set env for this job
           echo "REGISTRY=$CLEAN_URL" >> "$GITHUB_ENV"
 
       - name: Debug Registry Values
         run: |
-          echo "Original URL: ${{ gitea.server_url || github.server_url }}"
+          echo "Original URL: ${{ github.server_url }}"
           echo "Cleaned Registry: ${{ env.REGISTRY }}"
 
       - name: Set up Docker Buildx
@@ -59,7 +54,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.PACKAGES_TOKEN }}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
@@ -87,47 +82,34 @@ jobs:
       - name: Deploy to Homelab via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
-          # Use the registry address determined in the build job
           TARGET_IMAGE: ${{ needs.build-and-push.outputs.registry_address }}/${{ env.IMAGE_NAME }}:latest
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          # Pass environment variables to the script
           envs: TARGET_IMAGE
           script: |
-            # Directory where the app is deployed on the server
             DEPLOY_DIR="${{ secrets.DEPLOY_DIR || '~/docker/tab-sync-api' }}"
 
             echo "🚀 Deploying to $DEPLOY_DIR..."
-
-            # Create directory if it doesn't exist
             mkdir -p "$DEPLOY_DIR"
             cd "$DEPLOY_DIR"
 
-            # If the user has the repo cloned, pull changes.
-            # If not, we assume docker-compose.yml exists or we rely purely on docker run.
-            # Here we assume a 'GitOps' style where the repo is cloned on the server.
             if [ -d ".git" ]; then
               echo "Pulling latest compose config..."
               git pull origin main || git pull origin master
             fi
 
-            # Configure environment for the deployment
-            # Ensure .env exists or export variables
             export IMAGE_NAME=$TARGET_IMAGE
             export TAG=latest
 
-            # Pull the new image
             echo "📥 Pulling new image: $TARGET_IMAGE"
-            docker compose pull app
+            docker compose pull
 
-            # Restart the service
             echo "🔄 Restarting service..."
             docker compose up -d --remove-orphans
 
-            # Cleanup old images
             docker image prune -f
 
             echo "✅ Deployment complete!"
