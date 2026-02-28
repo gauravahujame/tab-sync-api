@@ -2,11 +2,11 @@ name: Build and Deploy
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
   workflow_dispatch:
 
 env:
-  REGISTRY: ${{ github.server_url }}
+  REGISTRY: ${{ vars.CONTAINER_REGISTRY }}
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
@@ -16,42 +16,16 @@ jobs:
       contents: read
       packages: write
     outputs:
-      registry_address: ${{ steps.registry_setup.outputs.registry_address }}
+      image_tag: ${{ steps.meta.outputs.version }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Registry URL
-        id: registry_setup
-        run: |
-          RAW_URL="${{ github.server_url }}"
-
-          # Strip protocol (http:// or https://)
-          CLEAN_URL=$(echo "$RAW_URL" | sed -E 's|^https?://||')
-
-          # If host is 'gitea', we should use the actual container name 'gitea' or the external domain
-          # We will just depend on the default CLEAN_URL which is gitea:3000
-          # Or if needed we can route to host.docker.internal, but typically gitea is correct on custom networks.
-
-          # Fix for internal hostname (macOS host /etc/hosts) not resolving inside Docker VM
-          # If host is 'gitea', switch to 'host.docker.internal' so Docker Daemon reaches Mac host
-          if [[ "$CLEAN_URL" == "gitea"* ]]; then
-            echo "Fixing internal hostname: changing $CLEAN_URL to host.docker.internal variant"
-            CLEAN_URL="host.docker.internal${CLEAN_URL#gitea}"
-          fi
-
-          echo "Registry Address: $CLEAN_URL"
-          echo "registry_address=$CLEAN_URL" >> "$GITHUB_OUTPUT"
-          echo "REGISTRY=$CLEAN_URL" >> "$GITHUB_ENV"
-
-      - name: Debug Registry Values
-        run: |
-          echo "Original URL: ${{ github.server_url }}"
-          echo "Cleaned Registry: ${{ env.REGISTRY }}"
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host          # lets buildx reach the registry via host network
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
@@ -60,7 +34,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.PACKAGES_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
+      - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -81,39 +55,21 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     if: success()
-
     steps:
       - name: Deploy to Homelab via SSH
         uses: appleboy/ssh-action@v1.0.3
-        env:
-          TARGET_IMAGE: ${{ needs.build-and-push.outputs.registry_address }}/${{ env.IMAGE_NAME }}:latest
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          envs: TARGET_IMAGE
+          envs: REGISTRY,IMAGE_NAME
           script: |
+            TARGET_IMAGE="${REGISTRY}/${IMAGE_NAME}:latest"
             DEPLOY_DIR="${{ secrets.DEPLOY_DIR || '~/docker/tab-sync-api' }}"
-
-            echo "🚀 Deploying to $DEPLOY_DIR..."
-            mkdir -p "$DEPLOY_DIR"
-            cd "$DEPLOY_DIR"
-
-            if [ -d ".git" ]; then
-              echo "Pulling latest compose config..."
-              git pull origin main || git pull origin master
-            fi
-
+            mkdir -p "$DEPLOY_DIR" && cd "$DEPLOY_DIR"
+            [ -d ".git" ] && (git pull origin main || git pull origin master)
             export IMAGE_NAME=$TARGET_IMAGE
-            export TAG=latest
-
-            echo "📥 Pulling new image: $TARGET_IMAGE"
-            docker compose pull
-
-            echo "🔄 Restarting service..."
-            docker compose up -d --remove-orphans
-
+            docker compose pull && docker compose up -d --remove-orphans
             docker image prune -f
-
-            echo "✅ Deployment complete!"
+            echo "✅ Deployment complete: $TARGET_IMAGE"
