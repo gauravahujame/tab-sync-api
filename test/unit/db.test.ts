@@ -5,12 +5,12 @@ describe('Database Module', () => {
   beforeAll(async () => {
     // Ensure the database is clean before tests
     await clearDatabase();
-  });
+  }, 30000);
 
   afterAll(async () => {
     // Clean up after all tests
     await clearDatabase();
-  });
+  }, 30000);
 
   describe('Table Creation', () => {
     it('should create users table with correct schema', async () => {

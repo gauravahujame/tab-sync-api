@@ -30,12 +30,9 @@ jobs:
           # Strip protocol (http:// or https://)
           CLEAN_URL=$(echo "$RAW_URL" | sed -E 's|^https?://||')
 
-          # Fix for internal hostname not resolving inside Docker build context
-          # If host is 'gitea', switch to 'localhost' to use the runner's network stack
-          if [[ "$CLEAN_URL" == "gitea"* ]]; then
-            echo "Fixing internal hostname: changing $CLEAN_URL to localhost variant"
-            CLEAN_URL="localhost${CLEAN_URL#gitea}"
-          fi
+          # If host is 'gitea', we should use the actual container name 'gitea' or the external domain
+          # We will just depend on the default CLEAN_URL which is gitea:3000
+          # Or if needed we can route to host.docker.internal, but typically gitea is correct on custom networks.
 
           echo "Registry Address: $CLEAN_URL"
           echo "registry_address=$CLEAN_URL" >> "$GITHUB_OUTPUT"
