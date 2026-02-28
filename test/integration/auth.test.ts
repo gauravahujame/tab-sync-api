@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, describe, it, expect, jest } from '@jest/globals';
+import { beforeAll, afterAll, describe, it, expect } from '@jest/globals';
 import { clearDatabase, createTestUser } from '../utils/test-utils.js';
 import { createTestClient } from '../utils/test-client.js';
 

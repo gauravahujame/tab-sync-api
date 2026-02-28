@@ -187,7 +187,7 @@ describe('SnapshotService', () => {
       mockDb.all.mockResolvedValueOnce(snapshots);
       mockDb.run.mockResolvedValueOnce({ changes: 2 }); // Expecting 2 deletions
 
-      const deletedCount = await service.pruneOldSnapshots(1, 'test-instance-id');
+      const _deletedCount = await service.pruneOldSnapshots(1, 'test-instance-id');
 
       // Verify logic:
       // ID 1, 2: Kept (within 48h)

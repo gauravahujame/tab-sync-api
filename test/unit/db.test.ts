@@ -1,6 +1,5 @@
 import { beforeAll, afterAll, describe, it, expect } from '@jest/globals';
 import { clearDatabase, runAsync, getAsync, allAsync } from '../utils/test-utils.js';
-import { db } from '../../src/db.js';
 
 describe('Database Module', () => {
   beforeAll(async () => {

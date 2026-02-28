@@ -46,7 +46,7 @@ describe('Snapshot Tables', () => {
     });
 
     it('should create indexes for snapshots table', async () => {
-      const indexes = await getAsync(
+      const _indexes = await getAsync(
         "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='snapshots'",
       );
 

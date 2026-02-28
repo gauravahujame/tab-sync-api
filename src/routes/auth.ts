@@ -63,7 +63,7 @@ authRouter.get('/validate', async (req, res) => {
     const decoded = jwt.verify(token, config.jwtSecret) as jwt.JwtPayload;
 
     // Return token information without sensitive data
-    const { iat, exp, ...userInfo } = decoded;
+    const { iat: _iat, exp, ...userInfo } = decoded;
 
     // Ensure the token contains necessary user information
     if (!userInfo.id) {
