@@ -11,6 +11,7 @@ import { errorHandler } from './middlewares/errorHandler.js';
 import { instanceValidationMiddleware } from './middlewares/instanceValidation.js';
 import { adminRouter } from './routes/admin.js';
 import authRouter from './routes/auth.js';
+import { notesRouter } from './routes/notes.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { snapshotRouter } from './routes/snapshots.js';
 import logger, { stream } from './utils/logger.js';
@@ -140,6 +141,7 @@ app.get('/api/v1/health', (_req: express.Request, res: express.Response) => {
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/sync', snapshotRouter); // New snapshot-based sync
 app.use('/api/v1/sessions', sessionsRouter);
+app.use('/api/v1/notes', notesRouter);
 
 // Error handling middleware
 app.use(errorHandler);

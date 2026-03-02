@@ -182,6 +182,38 @@ export async function runSyncMigrations(db: IDatabaseAdapter): Promise<void> {
   }
   logger.info('[MIGRATIONS] ✅ snapshots table created');
 
+  // 6. Create notes table (domain-scoped user notes)
+  if (dialect === 'sqlite') {
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        domain TEXT NOT NULL,
+        url TEXT DEFAULT '',
+        title TEXT DEFAULT '',
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+  } else {
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS notes (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        domain TEXT NOT NULL,
+        url TEXT DEFAULT '',
+        title TEXT DEFAULT '',
+        content TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+  }
+  logger.info('[MIGRATIONS] ✅ notes table created');
+
   // Create indices for performance
   const indices = [
     // Sessions indices
@@ -207,6 +239,12 @@ export async function runSyncMigrations(db: IDatabaseAdapter): Promise<void> {
     'CREATE INDEX IF NOT EXISTS idx_snapshots_hash ON snapshots(instance_id, snapshot_hash)',
     'CREATE INDEX IF NOT EXISTS idx_snapshots_created ON snapshots(created_at)',
     'CREATE INDEX IF NOT EXISTS idx_snapshots_user_instance_version ON snapshots(user_id, instance_id, version_number DESC)',
+
+    // Notes indices
+    'CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_notes_user_domain ON notes(user_id, domain)',
+    'CREATE INDEX IF NOT EXISTS idx_notes_domain ON notes(domain)',
+    'CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated_at DESC)',
   ];
 
   let indexErrors = 0;
@@ -237,6 +275,7 @@ export async function verifySyncTables(db: IDatabaseAdapter): Promise<boolean> {
     'session_tabs',
     'session_restorations',
     'snapshots',
+    'notes',
   ];
 
   try {

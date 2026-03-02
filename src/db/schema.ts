@@ -20,6 +20,7 @@ export async function createTables(db: IDatabaseAdapter): Promise<void> {
         email TEXT UNIQUE NOT NULL,
         name TEXT,
         token TEXT,
+        password_hash TEXT,
         browser_name TEXT NOT NULL DEFAULT 'unknown',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -31,6 +32,7 @@ export async function createTables(db: IDatabaseAdapter): Promise<void> {
         email TEXT UNIQUE NOT NULL,
         name TEXT,
         token TEXT,
+        password_hash TEXT,
         browser_name TEXT NOT NULL DEFAULT 'unknown',
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
@@ -38,6 +40,9 @@ export async function createTables(db: IDatabaseAdapter): Promise<void> {
   }
 
   await db.exec('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
+
+  // Ensure password_hash exists for earlier migrations
+  await ensureColumnExists(db, 'users', 'password_hash', 'TEXT');
 
   logger.info('[SCHEMA] Core tables created successfully');
 }

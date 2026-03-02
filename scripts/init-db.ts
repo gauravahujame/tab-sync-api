@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken'; // Changed this line
+import bcrypt from 'bcryptjs';
 import sqlite3 from 'sqlite3';
 import { config } from '../src/config.js';
 import logger from '../src/utils/logger.js';
@@ -52,6 +53,7 @@ async function initializeDatabase() {
           email TEXT UNIQUE NOT NULL,
           name TEXT,
           token TEXT,
+          password_hash TEXT,
           browser_name TEXT NOT NULL DEFAULT 'unknown',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`,
@@ -101,58 +103,7 @@ async function initializeDatabase() {
     const users = (await dbAll('SELECT * FROM users LIMIT 1')) as DbUser[];
 
     if (users.length === 0) {
-      logger.warn('╔══════════════════════════════════════════════════╗');
-      logger.warn('║               NO USERS FOUND                     ║');
-      logger.warn('╠══════════════════════════════════════════════════╣');
-
-      const name = 'Admin User';
-      const email = 'admin@tabsync.local';
-      const browserName = 'default-browser';
-
-      const payload = {
-        id: null,
-        name,
-        email,
-        browserName,
-      };
-
-      const token = jwt.sign(payload, config.jwtSecret, {
-        expiresIn: '365d',
-      });
-
-      await dbRun(
-        "INSERT INTO users (email, name, token, browser_name, created_at) VALUES (?, ?, ?, ?, datetime('now'))",
-        [email, name, token, browserName],
-      );
-
-      const newUser = (await dbAll('SELECT last_insert_rowid() as id')) as Array<{ id: number }>;
-      const userId = newUser[0].id;
-
-      const updatedPayload = {
-        id: userId,
-        name,
-        email,
-        browserName,
-      };
-
-      const updatedToken = jwt.sign(updatedPayload, config.jwtSecret, {
-        expiresIn: '365d',
-      });
-
-      await dbRun('UPDATE users SET token = ? WHERE id = ?', [updatedToken, userId]);
-
-      logger.warn('║  DEFAULT ADMIN USER CREATED:                     ');
-      logger.warn(`║  ID:       ${userId}                             `);
-      logger.warn(`║  Email:    ${email}                              `);
-      logger.warn(`║  Name:     ${name}                               `);
-      logger.warn(`║  Browser:  ${browserName}                        `);
-      logger.warn('║                                                  ');
-      logger.warn('║  🔑 JWT TOKEN:                                   ');
-      logger.warn(`║  ${updatedToken.substring(0, 40)}...`);
-      logger.warn('╠══════════════════════════════════════════════════╣');
-      logger.warn('║  IMPORTANT: Use this token for authentication    ║');
-      logger.warn('║  Add to Authorization header: Bearer <token>     ║');
-      logger.warn('╚══════════════════════════════════════════════════╝');
+      logger.info('Database initialized. No users found. Use the registration endpoint to create users.');
     } else {
       logger.info('Database already initialized with users');
     }

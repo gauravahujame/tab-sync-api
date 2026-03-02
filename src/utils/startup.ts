@@ -1,6 +1,7 @@
 import fs from 'fs';
 import jwt from 'jsonwebtoken';
 import path from 'path';
+import bcrypt from 'bcryptjs';
 import { config } from '../config.js';
 
 export async function initializeStartup(): Promise<void> {
@@ -39,6 +40,10 @@ export async function initializeStartup(): Promise<void> {
         const name = 'Admin User';
         const email = 'admin@tabsync.local';
         const browserName = 'default-browser';
+        const defaultPassword = 'adminpassword';
+
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(defaultPassword, salt);
 
         const payload = { id: null, name, email, browserName };
         const token = jwt.sign(payload, config.jwtSecret, {
@@ -50,9 +55,9 @@ export async function initializeStartup(): Promise<void> {
         const timestampExpr = dialect === 'sqlite' ? "datetime('now')" : 'NOW()';
 
         await db.run(
-          `INSERT INTO users (email, name, token, browser_name, created_at)
-           VALUES (?, ?, ?, ?, ${timestampExpr})`,
-          [email, name, token, browserName],
+          `INSERT INTO users (email, name, token, password_hash, browser_name, created_at)
+           VALUES (?, ?, ?, ?, ?, ${timestampExpr})`,
+          [email, name, token, passwordHash, browserName],
         );
 
         // Get last insert ID (dialect-specific)
@@ -77,13 +82,13 @@ export async function initializeStartup(): Promise<void> {
         console.warn('║  ✅ DEFAULT USER CREATED:                        ');
         console.log(`║  ID:       ${userId}                             `);
         console.log(`║  Email:    ${email}                              `);
+        console.log(`║  Password: ${defaultPassword}                      `);
         console.log(`║  Name:     ${name}                               `);
         console.log(`║  Browser:  ${browserName}                        `);
         console.log('║  🔑 JWT TOKEN:                                   ');
         console.log(`║  ${updatedToken.substring(0, 40)}...`);
         console.log('╠══════════════════════════════════════════════════╣');
-        console.log('║  IMPORTANT: Use this token for authentication    ║');
-        console.log('║  Add to Authorization header: Bearer <token>     ║');
+        console.log('║  IMPORTANT: Use this email and password to log in║');
         console.log('╚══════════════════════════════════════════════════╝');
       } else {
         const existingUsers = await db.all<{

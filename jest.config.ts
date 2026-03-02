@@ -20,7 +20,7 @@ const config: Config.InitialOptions = {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
-  // setupFilesAfterEnv: ["<rootDir>/test/setup.ts"], // Disabled for now
+  // setupFilesAfterEnv: ["<rootDir>/test/setup.ts"],
   collectCoverage: true,
   coverageDirectory: 'coverage',
   collectCoverageFrom: ['src/**/*.ts', '!src/index.ts', '!**/node_modules/**'],
