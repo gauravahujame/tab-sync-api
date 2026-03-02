@@ -1,5 +1,3 @@
-import jwt from 'jsonwebtoken'; // Changed this line
-import bcrypt from 'bcryptjs';
 import sqlite3 from 'sqlite3';
 import { config } from '../src/config.js';
 import logger from '../src/utils/logger.js';
