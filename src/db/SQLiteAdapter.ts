@@ -17,16 +17,28 @@ export class SQLiteAdapter extends BaseDatabaseAdapter {
 
     // Ensure database directory exists
     const dbDir = path.dirname(databasePath);
-    if (!fs.existsSync(dbDir)) {
-      fs.mkdirSync(dbDir, { recursive: true });
+    try {
+      if (databasePath !== ':memory:' && !fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'test') {
+        console.error('⚠️ Failed to create database directory:', err);
+      }
     }
 
-    console.log('🔌 Connecting to SQLite database...');
+    if (process.env.NODE_ENV !== 'test') {
+      console.log('🔌 Connecting to SQLite database...');
+    }
     this.db = new sqlite3.Database(databasePath, err => {
       if (err) {
-        console.error('❌ Failed to connect to SQLite database:', err.message);
-        logger.error('Failed to connect to SQLite database:', err.message);
-        process.exit(1);
+        if (process.env.NODE_ENV !== 'test') {
+          console.error('❌ Failed to connect to SQLite database:', err.message);
+          logger.error('Failed to connect to SQLite database:', err.message);
+          process.exit(1);
+        } else {
+          throw err;
+        }
       }
 
       console.log('✅ SQLite database connected successfully');

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { testConfig } from '../config/test.config';
+import { testConfig } from '../config/test.config.js';
 
 /**
  * Create a mock Express request object

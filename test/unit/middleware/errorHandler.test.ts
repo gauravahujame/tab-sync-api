@@ -13,7 +13,7 @@ interface CustomError extends Error {
 
 describe('Error Handler Middleware', () => {
   let req: Partial<Request>;
-  let res: Partial<Response>;
+  let res: Partial<Response> & { status: jest.Mock; json: jest.Mock };
   let next: NextFunction;
   let jsonMock: jest.Mock;
   let statusMock: jest.Mock;
@@ -30,7 +30,7 @@ describe('Error Handler Middleware', () => {
     res = {
       status: statusMock,
       json: jsonMock,
-    };
+    } as unknown as Partial<Response> & { status: jest.Mock; json: jest.Mock };
 
     next = jest.fn();
 
@@ -94,7 +94,11 @@ describe('Error Handler Middleware', () => {
     errorHandler(error.error, req as Request, res as Response, next);
 
     expect(statusMock).toHaveBeenCalledWith(400);
-    const response = jsonMock.mock.calls[0][0];
+    const response = jsonMock.mock.calls[0][0] as {
+      success: boolean;
+      error: string;
+      details: Array<{ field: string; message: string }>;
+    };
     expect(response.success).toBe(false);
     expect(response.error).toBe('Validation Error');
     expect(Array.isArray(response.details)).toBe(true);
@@ -184,7 +188,11 @@ describe('Error Handler Middleware', () => {
 
     expect(statusMock).toHaveBeenCalledWith(500);
 
-    const response = jsonMock.mock.calls[0][0];
+    const response = jsonMock.mock.calls[0][0] as {
+      success: boolean;
+      error: string;
+      stack?: string;
+    };
     expect(response.success).toBe(false);
     expect(response.error).toBe('Some error');
     expect(response.stack).toBeDefined();

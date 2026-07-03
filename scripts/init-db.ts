@@ -101,7 +101,9 @@ async function initializeDatabase() {
     const users = (await dbAll('SELECT * FROM users LIMIT 1')) as DbUser[];
 
     if (users.length === 0) {
-      logger.info('Database initialized. No users found. Use the registration endpoint to create users.');
+      logger.info(
+        'Database initialized. No users found. Use the registration endpoint to create users.',
+      );
     } else {
       logger.info('Database already initialized with users');
     }

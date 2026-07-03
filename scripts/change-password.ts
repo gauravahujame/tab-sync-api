@@ -41,7 +41,10 @@ async function changePassword() {
   }
 
   try {
-    const user = await dbGet<{ id: number; email: string }>('SELECT id, email FROM users WHERE email = ?', [email]);
+    const user = await dbGet<{ id: number; email: string }>(
+      'SELECT id, email FROM users WHERE email = ?',
+      [email],
+    );
 
     if (!user) {
       console.error(`User with email ${email} not found.`);

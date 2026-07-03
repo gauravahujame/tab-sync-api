@@ -123,10 +123,15 @@ authRouter.post('/login', async (req, res) => {
     const db = getDb();
 
     // Check if user exists
-    const user = await db.get<{ id: number; email: string; name: string; password_hash?: string; browser_name: string }>(
-      'SELECT id, email, name, password_hash, browser_name FROM users WHERE email = ? LIMIT 1',
-      [email],
-    );
+    const user = await db.get<{
+      id: number;
+      email: string;
+      name: string;
+      password_hash?: string;
+      browser_name: string;
+    }>('SELECT id, email, name, password_hash, browser_name FROM users WHERE email = ? LIMIT 1', [
+      email,
+    ]);
 
     if (!user) {
       return res.status(401).json({
@@ -259,10 +264,7 @@ authRouter.post('/register', async (req, res) => {
     });
 
     // Update user with new token
-    await db.run('UPDATE users SET token = ? WHERE id = ?', [
-      token,
-      userId,
-    ]);
+    await db.run('UPDATE users SET token = ? WHERE id = ?', [token, userId]);
 
     logger.info(`[AUTH:REGISTER] User registered: ${email} (ID: ${userId})`);
 

@@ -49,7 +49,7 @@ jest.mock('express', () => {
     post: jest.fn(),
     put: jest.fn(),
     delete: jest.fn(),
-    listen: jest.fn((port, callback) => {
+    listen: jest.fn((_port, callback) => {
       if (callback) callback();
       return { close: jest.fn() };
     }),

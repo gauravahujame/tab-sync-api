@@ -214,6 +214,46 @@ export async function runSyncMigrations(db: IDatabaseAdapter): Promise<void> {
   }
   logger.info('[MIGRATIONS] ✅ notes table created');
 
+  // 7. Create browsing_history table (per-visit page tracking with tags)
+  if (dialect === 'sqlite') {
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS browsing_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        url TEXT NOT NULL,
+        title TEXT DEFAULT '',
+        domain TEXT NOT NULL,
+        tags TEXT,
+        visit_count INTEGER NOT NULL DEFAULT 1,
+        last_visited_at INTEGER NOT NULL,
+        first_visited_at INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, url),
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+  } else {
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS browsing_history (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        url TEXT NOT NULL,
+        title TEXT DEFAULT '',
+        domain TEXT NOT NULL,
+        tags JSONB,
+        visit_count INTEGER NOT NULL DEFAULT 1,
+        last_visited_at BIGINT NOT NULL,
+        first_visited_at BIGINT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(user_id, url),
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+  }
+  logger.info('[MIGRATIONS] ✅ browsing_history table created');
+
   // Create indices for performance
   const indices = [
     // Sessions indices
@@ -245,6 +285,13 @@ export async function runSyncMigrations(db: IDatabaseAdapter): Promise<void> {
     'CREATE INDEX IF NOT EXISTS idx_notes_user_domain ON notes(user_id, domain)',
     'CREATE INDEX IF NOT EXISTS idx_notes_domain ON notes(domain)',
     'CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated_at DESC)',
+
+    // Browsing history indices
+    'CREATE INDEX IF NOT EXISTS idx_browsing_history_user_id ON browsing_history(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_browsing_history_user_domain ON browsing_history(user_id, domain)',
+    'CREATE INDEX IF NOT EXISTS idx_browsing_history_user_url ON browsing_history(user_id, url)',
+    'CREATE INDEX IF NOT EXISTS idx_browsing_history_last_visited ON browsing_history(user_id, last_visited_at DESC)',
+    'CREATE INDEX IF NOT EXISTS idx_browsing_history_domain ON browsing_history(domain)',
   ];
 
   let indexErrors = 0;
@@ -276,6 +323,7 @@ export async function verifySyncTables(db: IDatabaseAdapter): Promise<boolean> {
     'session_restorations',
     'snapshots',
     'notes',
+    'browsing_history',
   ];
 
   try {

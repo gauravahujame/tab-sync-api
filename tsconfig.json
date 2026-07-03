@@ -9,7 +9,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "sourceMap": true,
     "resolveJsonModule": true,
     "allowJs": true,
@@ -23,7 +23,9 @@
     "experimentalSpecifierResolution": "node"
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "scripts/**/*.ts"
   ],
   "exclude": [
     "node_modules/**/*.*",

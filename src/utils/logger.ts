@@ -9,10 +9,15 @@ const logsDir = path.join(process.cwd(), config.logDir);
 try {
   if (!fs.existsSync(logsDir)) {
     fs.mkdirSync(logsDir, { recursive: true });
-    console.log(`✅ Created logs directory: ${logsDir}`);
+    // Only log if not in test env
+    if (process.env.NODE_ENV !== 'test') {
+      console.log(`✅ Created logs directory: ${logsDir}`);
+    }
   }
 } catch (error) {
-  console.error(`❌ Failed to create logs directory: ${logsDir}`, error);
+  if (process.env.NODE_ENV !== 'test') {
+    console.error(`❌ Failed to create logs directory: ${logsDir}`, error);
+  }
   // Fallback to console-only logging if directory creation fails
 }
 

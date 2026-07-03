@@ -1,12 +1,10 @@
 import { describe, it, expect, jest, beforeEach, beforeAll, afterAll } from '@jest/globals';
 import jwt from 'jsonwebtoken';
-import { authMiddleware } from '../../../src/middlewares/auth';
-import { AuthRequest } from '../../../src/types/index';
+import { authMiddleware } from '../../../src/middlewares/auth.js';
+import { AuthRequest } from '../../../src/types/index.js';
 import { Response, NextFunction } from 'express';
 import { clearDatabase, createTestUser } from '../../utils/test-utils.js';
-
-// Mock JWT verify
-jest.mock('jsonwebtoken');
+import { config } from '../../../src/config.js';
 
 describe('Authentication Middleware', () => {
   let req: AuthRequest;
@@ -85,7 +83,7 @@ describe('Authentication Middleware', () => {
   });
 
   it('should return 401 for invalid token', async () => {
-    (jwt.verify as jest.Mock).mockImplementation(() => {
+    const verifySpy = jest.spyOn(jwt, 'verify').mockImplementation(() => {
       throw new Error('Invalid token');
     });
 
@@ -99,15 +97,14 @@ describe('Authentication Middleware', () => {
       error: 'Invalid token',
     });
     expect(next).not.toHaveBeenCalled();
+
+    verifySpy.mockRestore();
   });
 
   it('should return 401 when token is missing user ID', async () => {
-    (jwt.verify as jest.Mock).mockReturnValue({
-      email: 'test@example.com',
-      // missing id
-    });
+    const tokenWithoutId = jwt.sign({ email: 'test@example.com' }, config.jwtSecret);
 
-    req.headers.authorization = 'Bearer valid.token.without.id';
+    req.headers.authorization = `Bearer ${tokenWithoutId}`;
 
     await authMiddleware(req, res, next);
 
@@ -120,13 +117,12 @@ describe('Authentication Middleware', () => {
   });
 
   it('should call next() with valid token', async () => {
-    (jwt.verify as jest.Mock).mockReturnValue({
-      id: validUserId,
-      email: 'test@example.com',
-      name: 'Test User',
-    });
+    const validToken = jwt.sign(
+      { id: validUserId, email: 'test@example.com', name: 'Test User' },
+      config.jwtSecret,
+    );
 
-    req.headers.authorization = 'Bearer valid.token.here';
+    req.headers.authorization = `Bearer ${validToken}`;
 
     await authMiddleware(req, res, next);
 

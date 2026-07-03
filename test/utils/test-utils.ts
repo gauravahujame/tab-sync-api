@@ -47,6 +47,8 @@ export const clearDatabase = async (): Promise<void> => {
     'sessions',
     'session_restorations',
     'snapshots',
+    'notes',
+    'browsing_history',
     'users',
     'tabs',
   ];

@@ -182,10 +182,10 @@ export class NotesService {
     logger.info('[NOTES:DELETE] Deleting note', { noteId, userId });
 
     try {
-      const result = await this.db.run(
-        `DELETE FROM notes WHERE id = $1 AND user_id = $2`,
-        [noteId, userId],
-      );
+      const result = await this.db.run(`DELETE FROM notes WHERE id = $1 AND user_id = $2`, [
+        noteId,
+        userId,
+      ]);
 
       const deleted = result.changes > 0;
       if (deleted) {
@@ -223,10 +223,9 @@ export class NotesService {
            LIMIT $2 OFFSET $3`,
           [userId, limit, offset],
         ),
-        this.db.get<{ count: number }>(
-          `SELECT COUNT(*) as count FROM notes WHERE user_id = $1`,
-          [userId],
-        ),
+        this.db.get<{ count: number }>(`SELECT COUNT(*) as count FROM notes WHERE user_id = $1`, [
+          userId,
+        ]),
       ]);
 
       return {

@@ -38,16 +38,8 @@ export const createNoteSchema = z.object({
     .min(1, 'Domain is required')
     .max(255, 'Domain too long')
     .transform(val => val.toLowerCase().trim()),
-  url: z
-    .string()
-    .max(2048, 'URL too long')
-    .optional()
-    .default(''),
-  title: z
-    .string()
-    .max(500, 'Title too long')
-    .optional()
-    .default(''),
+  url: z.string().max(2048, 'URL too long').optional().default(''),
+  title: z.string().max(500, 'Title too long').optional().default(''),
   content: z
     .string()
     .min(1, 'Note content cannot be empty')
@@ -60,10 +52,7 @@ export const updateNoteSchema = z.object({
     .min(1, 'Note content cannot be empty')
     .max(10000, 'Note content too long (max 10,000 characters)')
     .optional(),
-  title: z
-    .string()
-    .max(500, 'Title too long')
-    .optional(),
+  title: z.string().max(500, 'Title too long').optional(),
 });
 
 export type CreateNoteInput = z.infer<typeof createNoteSchema>;

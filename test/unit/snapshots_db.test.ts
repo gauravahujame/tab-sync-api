@@ -33,9 +33,7 @@ describe('Snapshot Tables', () => {
     });
 
     it('should create indexes for snapshots table', async () => {
-      const _indexes = await getAsync(
-        "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='snapshots'",
-      );
+      await getAsync("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='snapshots'");
 
       // Sqlite returns one index at a time with db.get, we might need db.all to check all
       // But db.get only returns one. Let's use a query that returns all indexes names.

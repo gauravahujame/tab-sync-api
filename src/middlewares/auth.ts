@@ -7,11 +7,7 @@ import logger from '../utils/logger.js';
 
 export async function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
   // Skip auth for public endpoints
-  const publicPaths = [
-    '/api/v1/health',
-    '/api/v1/auth/validate', // This endpoint handles its own auth logic
-    '/api/v1/auth/register', // Public registration endpoint
-  ];
+  const publicPaths = ['/api/v1/health'];
 
   if (publicPaths.includes(req.path)) {
     return next();
@@ -41,7 +37,7 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
       });
     }
 
-    // âœ" Check if user still exists in database
+    // Check if user still exists in database
     return new Promise<void>(resolve => {
       db.get(
         'SELECT id, email, name FROM users WHERE id = ? LIMIT 1',
@@ -70,7 +66,7 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
             return resolve();
           }
 
-          // âœ" User exists, attach to request
+          // User exists, attach to request
           req.user = {
             id: user.id,
             email: user.email,

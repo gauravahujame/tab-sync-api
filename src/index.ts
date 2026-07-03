@@ -11,6 +11,7 @@ import { errorHandler } from './middlewares/errorHandler.js';
 import { instanceValidationMiddleware } from './middlewares/instanceValidation.js';
 import { adminRouter } from './routes/admin.js';
 import authRouter from './routes/auth.js';
+import { historyRouter } from './routes/history.js';
 import { notesRouter } from './routes/notes.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { snapshotRouter } from './routes/snapshots.js';
@@ -19,7 +20,23 @@ import { initializeStartup } from './utils/startup.js';
 
 export const app = express();
 
-// Security headers - Configure helmet to allow CORS
+/**
+ * ------------------------------------------------------------------
+ * TRUST PROXY (Safer Handling)
+ * ------------------------------------------------------------------
+ * If running behind a reverse proxy (Nginx, Traefik, Cloudflare),
+ * set BEHIND_PROXY=true in env.
+ *
+ * We trust only 1 hop for safety instead of trusting all proxies.
+ */
+const behindProxy = process.env.BEHIND_PROXY === 'true';
+app.set('trust proxy', behindProxy ? 1 : false);
+
+/**
+ * ------------------------------------------------------------------
+ * SECURITY HEADERS
+ * ------------------------------------------------------------------
+ */
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -27,34 +44,46 @@ app.use(
   }),
 );
 
-// CORS configuration for Chrome extension support
+/**
+ * ------------------------------------------------------------------
+ * CORS CONFIGURATION
+ * ------------------------------------------------------------------
+ * - Supports Chrome & Firefox extensions
+ * - Supports mobile apps / curl (no origin)
+ * - Supports configured origins
+ * - Supports localhost & LAN in development
+ *
+ * IMPORTANT:
+ * We do NOT allow "*" when credentials=true.
+ */
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, Postman, curl)
+    // Allow non-browser clients (curl, Postman, mobile apps)
     if (!origin) {
       return callback(null, true);
     }
 
-    // Allow chrome-extension:// origins
+    // Allow Chrome extensions
     if (origin.startsWith('chrome-extension://')) {
       return callback(null, true);
     }
 
-    // Allow moz-extension:// origins (Firefox)
+    // Allow Firefox extensions
     if (origin.startsWith('moz-extension://')) {
       return callback(null, true);
     }
 
-    // Check against allowed origins from config
-    if (
-      config.allowedOrigins.length === 0 ||
-      config.allowedOrigins.includes(origin) ||
-      config.allowedOrigins.includes('*')
-    ) {
+    // If no allowedOrigins configured, allow all explicitly
+    if (!config.allowedOrigins || config.allowedOrigins.length === 0) {
       return callback(null, true);
     }
 
-    // In development mode, allow localhost and local IPs
+    // Explicit origin match only (NO wildcard with credentials)
+    if (config.allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Development convenience: allow localhost + private networks
     if (config.isDevelopment) {
       if (
         origin.includes('localhost') ||
@@ -65,44 +94,53 @@ const corsOptions: cors.CorsOptions = {
       }
     }
 
-    callback(new Error('Not allowed by CORS'));
+    return callback(new Error('Not allowed by CORS'));
   },
+
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-Instance-ID'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   credentials: true,
-  maxAge: 86400, // 24 hours
-  preflightContinue: false,
+  maxAge: 86400,
   optionsSuccessStatus: 204,
 };
 
 app.use(cors(corsOptions));
 
-// Handle preflight requests explicitly
-// app.options("*", cors(corsOptions));
-// Handle preflight requests explicitly - Express 5 compatible
-app.options('/*splat', cors(corsOptions)); // ✅ Changed from "*"
+// Explicit preflight handler (Express 5 compatible)
+app.options('/*splat', cors(corsOptions));
 
-// HTTP request logging
+/**
+ * ------------------------------------------------------------------
+ * LOGGING
+ * ------------------------------------------------------------------
+ */
 app.use(morgan('combined', { stream }));
 
-// Rate limiting
+/**
+ * ------------------------------------------------------------------
+ * RATE LIMITING
+ * ------------------------------------------------------------------
+ */
 if (config.rateLimit.enabled) {
   app.use(
     rateLimit({
       windowMs: config.rateLimit.windowMs,
       max: config.rateLimit.maxRequests,
       standardHeaders: true,
+      legacyHeaders: false,
+
       handler: (
         req: express.Request,
         res: express.Response,
         _next: express.NextFunction,
         options: any,
       ) => {
-        const ip = req.ip || req.connection.remoteAddress;
+        const ip = req.ip;
         logger.warn(`Rate limit exceeded for IP: ${ip}, Path: ${req.path}`);
         res.status(options.statusCode).json(options.message);
       },
+
       message: {
         success: false,
         error: 'Too many requests, please try again later.',
@@ -111,68 +149,69 @@ if (config.rateLimit.enabled) {
   );
 }
 
-// Raw body parser for gzip compressed requests
-// Must come BEFORE any other middleware to handle raw buffers for snapshot uploads
+/**
+ * ------------------------------------------------------------------
+ * BODY PARSERS
+ * ------------------------------------------------------------------
+ * Raw body parser for gzip-compressed snapshot uploads.
+ * Must come BEFORE express.json().
+ */
 app.use(
   express.raw({
-    type: req => {
-      return req.headers['content-encoding'] === 'gzip';
-    },
+    type: req => req.headers['content-encoding'] === 'gzip',
     limit: '10mb',
-    inflate: true, // ✅ Let Express decompress automatically
+    inflate: true,
   }),
 );
 
 app.use(express.json({ limit: '10mb' }));
 
-// Admin routes (no auth required)
-app.use('/api/v1/admin', adminRouter);
+/**
+ * ------------------------------------------------------------------
+ * ROUTES
+ * ------------------------------------------------------------------
+ */
 
-// Apply authentication middleware
+// Public routes (no auth required)
+app.get('/api/v1/health', (_req, res) => {
+  res.json({ status: 'ok' });
+});
+app.use('/api/v1/auth', authRouter);
+
+// Auth middleware
 app.use(authMiddleware);
 app.use(instanceValidationMiddleware);
 
-// Health check endpoint (exempt from auth)
-app.get('/api/v1/health', (_req: express.Request, res: express.Response) => {
-  res.json({ status: 'ok' });
-});
-
-// API Routes
-app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/sync', snapshotRouter); // New snapshot-based sync
+// Protected routes
+app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/sync', snapshotRouter);
 app.use('/api/v1/sessions', sessionsRouter);
 app.use('/api/v1/notes', notesRouter);
+app.use('/api/v1/history', historyRouter);
 
-// Error handling middleware
+/**
+ * ------------------------------------------------------------------
+ * ERROR HANDLING
+ * ------------------------------------------------------------------
+ */
 app.use(errorHandler);
 
-const domain = process.env.DOMAIN?.trim();
-
-let trustProxySetting;
-
-if (domain && domain.length > 0) {
-  trustProxySetting = domain;
-} else {
-  trustProxySetting = false;
-}
-
-app.set('trust proxy', trustProxySetting);
-
-// Initialize database and create default user before starting server
-// This ensures console output is visible before Express takes over
+/**
+ * ------------------------------------------------------------------
+ * SERVER STARTUP
+ * ------------------------------------------------------------------
+ */
 let server: ReturnType<typeof app.listen>;
 
 async function startServer() {
   try {
-    // Run startup initialization first
     await initializeStartup();
 
-    // Now start the Express server
     const host = '0.0.0.0';
+
     server = app.listen(config.port, host, () => {
-      const accessUrl = `http://localhost:${config.port}`;
-      logger.info(`Server is running in ${config.nodeEnv} mode on ${host}:${config.port}`);
-      logger.info(`Accessible locally at ${accessUrl}`);
+      logger.info(`Server running in ${config.nodeEnv} mode on ${host}:${config.port}`);
+      logger.info(`Accessible locally at http://localhost:${config.port}`);
       logger.info(`Log level: ${config.logLevel}`);
       logger.info(`Logs directory: ${path.join(process.cwd(), config.logDir)}`);
     });
@@ -182,7 +221,7 @@ async function startServer() {
   }
 }
 
-// Start the server only if not in test environment
+// Do not auto-start in test
 if (process.env.NODE_ENV !== 'test') {
   console.log('🚀 Starting Tab Sync API server...');
   startServer().catch(error => {
@@ -191,15 +230,20 @@ if (process.env.NODE_ENV !== 'test') {
   });
 }
 
-// Graceful shutdown handler
+/**
+ * ------------------------------------------------------------------
+ * GRACEFUL SHUTDOWN
+ * ------------------------------------------------------------------
+ */
 const shutdown = (signal: string) => {
   logger.info(`Received ${signal}, shutting down.`);
-  server.close(async () => {
+
+  if (!server) {
+    process.exit(0);
+  }
+
+  server.close(() => {
     logger.info('HTTP server closed.');
-
-    // Note: Database connection is managed by the db module
-    // and will be closed automatically when the process exits
-
     process.exit(0);
   });
 };
@@ -208,4 +252,3 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 export * from './db.js';
-// Must come before express.json() to handle raw buffers

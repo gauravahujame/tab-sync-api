@@ -25,7 +25,7 @@ services:
   # ---------------------------------------------------------------------------
   app:
     # Use IMAGE_NAME env var to point to your registry image (e.g., git.example.com/user/repo)
-    image: ${IMAGE_NAME:-tabium-api}:${TAG:-latest}
+    image: ${IMAGE_NAME:-gitea.gauravahuja.dev/gauravahujame/tabsync}:${TAG:-latest}
     # build:
     #   context: .
     #   target: production

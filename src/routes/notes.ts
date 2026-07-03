@@ -6,11 +6,7 @@ import express, { Request, Response } from 'express';
 import { getDb } from '../db.js';
 import { authMiddleware } from '../middlewares/auth.js';
 import { NotesService } from '../services/NotesService.js';
-import {
-  createNoteSchema,
-  updateNoteSchema,
-  noteRowToResponse,
-} from '../types/note.types.js';
+import { createNoteSchema, updateNoteSchema, noteRowToResponse } from '../types/note.types.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
