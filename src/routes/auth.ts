@@ -48,10 +48,12 @@ authRouter.get('/validate', async (req, res) => {
 
     try {
       const db = getDb();
-      const user = await db.get<{ id: number; email: string; name: string }>(
-        'SELECT id, email, name FROM users WHERE id = ? LIMIT 1',
-        [userInfo.id],
-      );
+      const user = await db.get<{
+        id: number;
+        email: string;
+        name: string;
+        token_revoked_at: number | null;
+      }>('SELECT id, email, name, token_revoked_at FROM users WHERE id = ? LIMIT 1', [userInfo.id]);
 
       if (!user) {
         logger.warn('[AUTH:VALIDATE] User not found', {
@@ -60,6 +62,15 @@ authRouter.get('/validate', async (req, res) => {
         return res.status(401).json({
           valid: false,
           error: 'User not found or has been deleted',
+        });
+      }
+
+      const revokedAt = user.token_revoked_at || 0;
+      const iat = decoded.iat || 0;
+      if (revokedAt > 0 && iat <= revokedAt) {
+        return res.status(401).json({
+          valid: false,
+          error: 'Token has been revoked. Please log in again.',
         });
       }
 
@@ -170,8 +181,8 @@ authRouter.post('/login', async (req, res) => {
       expiresIn: '365d',
     });
 
-    // Update user with new token
-    await db.run('UPDATE users SET token = ? WHERE id = ?', [token, user.id]);
+    // Update user with new token and clear any previous revocation
+    await db.run('UPDATE users SET token = ?, token_revoked_at = 0 WHERE id = ?', [token, user.id]);
 
     logger.info(`[AUTH:LOGIN] User logged in: ${email} (ID: ${user.id})`);
 
@@ -263,8 +274,8 @@ authRouter.post('/register', async (req, res) => {
       expiresIn: '365d',
     });
 
-    // Update user with new token
-    await db.run('UPDATE users SET token = ? WHERE id = ?', [token, userId]);
+    // Update user with new token and clear any previous revocation
+    await db.run('UPDATE users SET token = ?, token_revoked_at = 0 WHERE id = ?', [token, userId]);
 
     logger.info(`[AUTH:REGISTER] User registered: ${email} (ID: ${userId})`);
 

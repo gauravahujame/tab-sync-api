@@ -42,7 +42,11 @@ export async function createTables(db: IDatabaseAdapter): Promise<void> {
   await db.exec('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
 
   // Ensure password_hash exists for earlier migrations
-  await ensureColumnExists(db, 'users', 'password_hash', 'TEXT');
+  await ensureColumnExists(db, 'users', 'password_hash', 'password_hash TEXT');
+
+  // Track token revocation time so multiple valid devices can coexist while
+  // still allowing "log out everywhere" / password-change revocation.
+  await ensureColumnExists(db, 'users', 'token_revoked_at', 'token_revoked_at INTEGER DEFAULT 0');
 
   logger.info('[SCHEMA] Core tables created successfully');
 }

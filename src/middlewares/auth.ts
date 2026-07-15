@@ -36,10 +36,15 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
     }
 
     const db = getDb();
-    const user = await db.get<{ id: number; email: string; name: string; token: string | null }>(
-      'SELECT id, email, name, token FROM users WHERE id = ? LIMIT 1',
-      [decodedUser.id],
-    );
+    const user = await db.get<{
+      id: number;
+      email: string;
+      name: string;
+      token: string | null;
+      token_revoked_at: number | null;
+    }>('SELECT id, email, name, token, token_revoked_at FROM users WHERE id = ? LIMIT 1', [
+      decodedUser.id,
+    ]);
 
     if (!user) {
       logger.warn('[AUTH:MIDDLEWARE] User deleted but token still valid', {
@@ -51,9 +56,16 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
       });
     }
 
-    // Reject tokens that do not match the one stored in the database.
-    // This allows login/password changes to invalidate existing tokens.
-    if (!user.token || user.token !== token) {
+    // Reject tokens issued before a revocation event (e.g. "log out everywhere"
+    // or password change). This allows multiple valid devices to remain signed in
+    // while still supporting explicit revocation.
+    const revokedAt = user.token_revoked_at || 0;
+    const issuedAt =
+      typeof decoded === 'object' && (decoded as jwt.JwtPayload).iat
+        ? (decoded as jwt.JwtPayload).iat
+        : 0;
+
+    if (!user.token || (revokedAt > 0 && issuedAt <= revokedAt)) {
       logger.warn('[AUTH:MIDDLEWARE] Token mismatch or revoked', {
         userId: user.id,
       });

@@ -31,8 +31,9 @@ export async function instanceValidationMiddleware(
     return next();
   }
 
-  // Only require instance ID for sync-related endpoints
-  const requiresInstanceId = ['/api/v1/sync', '/api/v1/sessions'];
+  // Only require instance ID for sync-related endpoints.
+  // Session routes that need an instance ID validate it in their own handlers.
+  const requiresInstanceId = ['/api/v1/sync'];
 
   const needsInstanceId = requiresInstanceId.some(path => req.path.startsWith(path));
 

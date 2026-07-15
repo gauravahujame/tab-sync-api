@@ -287,15 +287,15 @@ export class SnapshotService {
 
       // Keep all from last 48 hours
       allSnapshots
-        .filter(s => now - new Date(s.created_at).getTime() < RETENTION_POLICY.HOURS_48)
+        .filter(s => now - this.parseDate(s.created_at).getTime() < RETENTION_POLICY.HOURS_48)
         .forEach(s => toKeep.add(s.id));
 
       // Keep hourly for last 7 days
       const hourlyBuckets = this.bucketByInterval(
         allSnapshots.filter(
           s =>
-            now - new Date(s.created_at).getTime() < RETENTION_POLICY.DAYS_7 &&
-            now - new Date(s.created_at).getTime() >= RETENTION_POLICY.HOURS_48,
+            now - this.parseDate(s.created_at).getTime() < RETENTION_POLICY.DAYS_7 &&
+            now - this.parseDate(s.created_at).getTime() >= RETENTION_POLICY.HOURS_48,
         ),
         60 * 60 * 1000, // 1 hour
       );
@@ -305,8 +305,8 @@ export class SnapshotService {
       const dailyBuckets = this.bucketByInterval(
         allSnapshots.filter(
           s =>
-            now - new Date(s.created_at).getTime() < RETENTION_POLICY.DAYS_30 &&
-            now - new Date(s.created_at).getTime() >= RETENTION_POLICY.DAYS_7,
+            now - this.parseDate(s.created_at).getTime() < RETENTION_POLICY.DAYS_30 &&
+            now - this.parseDate(s.created_at).getTime() >= RETENTION_POLICY.DAYS_7,
         ),
         24 * 60 * 60 * 1000, // 1 day
       );
@@ -316,8 +316,8 @@ export class SnapshotService {
       const weeklyBuckets = this.bucketByInterval(
         allSnapshots.filter(
           s =>
-            now - new Date(s.created_at).getTime() < RETENTION_POLICY.DAYS_90 &&
-            now - new Date(s.created_at).getTime() >= RETENTION_POLICY.DAYS_30,
+            now - this.parseDate(s.created_at).getTime() < RETENTION_POLICY.DAYS_90 &&
+            now - this.parseDate(s.created_at).getTime() >= RETENTION_POLICY.DAYS_30,
         ),
         7 * 24 * 60 * 60 * 1000, // 1 week
       );
@@ -326,7 +326,7 @@ export class SnapshotService {
       // Keep monthly beyond 90 days
       const monthlyBuckets = this.bucketByInterval(
         allSnapshots.filter(
-          s => now - new Date(s.created_at).getTime() >= RETENTION_POLICY.DAYS_90,
+          s => now - this.parseDate(s.created_at).getTime() >= RETENTION_POLICY.DAYS_90,
         ),
         30 * 24 * 60 * 60 * 1000, // ~1 month
       );
@@ -416,8 +416,8 @@ export class SnapshotService {
         totalSnapshots: stats?.total || 0,
         latestVersion: stats?.latest_version || null,
         totalSizeBytes: stats?.total_size || 0,
-        oldestSnapshot: stats?.oldest || null,
-        newestSnapshot: stats?.newest || null,
+        oldestSnapshot: stats?.oldest ? this.parseDate(stats.oldest) : null,
+        newestSnapshot: stats?.newest ? this.parseDate(stats.newest) : null,
       };
     } catch (error) {
       logger.error('[SNAPSHOT:STATS] Failed to get stats', {

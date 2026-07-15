@@ -101,7 +101,10 @@ export const createTestUser = async (userData: {
 
   // Store a matching JWT in the token column so authMiddleware can validate it
   const jwtToken = generateTestToken(userId, email, browserName);
-  await runAsync('UPDATE users SET token = ? WHERE id = ?', [jwtToken, userId]);
+  await runAsync('UPDATE users SET token = ?, token_revoked_at = 0 WHERE id = ?', [
+    jwtToken,
+    userId,
+  ]);
 
   return userId;
 };
