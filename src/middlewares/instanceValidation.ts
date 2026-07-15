@@ -20,7 +20,7 @@ export async function instanceValidationMiddleware(
   next: NextFunction,
 ) {
   // Skip validation for public endpoints (no auth required)
-  const publicPaths = ['/api/v1/health', '/api/v1/auth/validate', '/api/v1/auth/register'];
+  const publicPaths = ['/api/v1/health', '/api/v1/auth'];
 
   if (publicPaths.some(path => req.path.startsWith(path))) {
     return next();

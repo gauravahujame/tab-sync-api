@@ -7,9 +7,9 @@ import logger from '../utils/logger.js';
 
 export async function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
   // Skip auth for public endpoints
-  const publicPaths = ['/api/v1/health'];
+  const publicPaths = ['/api/v1/health', '/api/v1/auth'];
 
-  if (publicPaths.includes(req.path)) {
+  if (publicPaths.some(path => req.path.startsWith(path))) {
     return next();
   }
 
