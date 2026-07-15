@@ -47,7 +47,7 @@ describe('SnapshotService', () => {
       get: jest.fn(),
       all: jest.fn(),
       run: jest.fn(),
-      transaction: jest.fn(),
+      transaction: jest.fn((callback: () => Promise<any>) => callback()),
       beginTransaction: jest.fn(),
       commit: jest.fn(),
       rollback: jest.fn(),
@@ -86,8 +86,39 @@ describe('SnapshotService', () => {
       expect(mockDb.get).toHaveBeenNthCalledWith(
         2,
         expect.stringContaining('INSERT INTO snapshots'),
-        expect.arrayContaining([1, 'test-instance-id', expect.any(Object), 'test-hash']),
+        expect.arrayContaining([1, 'test-instance-id', expect.any(String), 'test-hash']),
       );
+    });
+
+    it('should retry on unique constraint violation and eventually succeed', async () => {
+      // First attempt fails with unique constraint, second succeeds
+      let attempt = 0;
+      mockDb.transaction.mockImplementation(async (callback: () => Promise<any>) => {
+        attempt++;
+        if (attempt === 1) {
+          throw new Error('SQLITE_CONSTRAINT_UNIQUE');
+        }
+        return callback();
+      });
+
+      mockDb.get.mockResolvedValueOnce(undefined); // check duplicate (attempt 2)
+      mockDb.get.mockResolvedValueOnce({ version_number: 3 }); // insert result
+
+      const result = await service.ingestSnapshot(1, 'test-instance-id', mockSnapshot, 'test-hash');
+
+      expect(result.versionNumber).toBe(3);
+      expect(result.isDuplicate).toBe(false);
+      expect(attempt).toBe(2);
+    });
+
+    it('should throw after max retries on unique constraint violation', async () => {
+      mockDb.transaction.mockRejectedValue(new Error('SQLITE_CONSTRAINT_UNIQUE'));
+
+      await expect(
+        service.ingestSnapshot(1, 'test-instance-id', mockSnapshot, 'test-hash'),
+      ).rejects.toThrow('SQLITE_CONSTRAINT_UNIQUE');
+
+      expect(mockDb.transaction).toHaveBeenCalledTimes(3);
     });
 
     it('should detect duplicate snapshot by hash', async () => {
@@ -106,6 +137,24 @@ describe('SnapshotService', () => {
   });
 
   describe('getLatestSnapshot', () => {
+    it('should parse snapshot_data JSON string returned by SQLite', async () => {
+      const mockRow = {
+        id: 1,
+        version_number: 2,
+        snapshot_data: JSON.stringify(mockSnapshot),
+        created_at: '2023-01-15T10:30:00.000Z',
+      };
+
+      mockDb.get.mockResolvedValueOnce(mockRow);
+
+      const result = await service.getLatestSnapshot(1, 'test-instance-id');
+
+      expect(result).not.toBeNull();
+      expect(result?.snapshot_data).toEqual(mockSnapshot);
+      expect(result?.created_at).toBeInstanceOf(Date);
+      expect(result?.created_at.toISOString()).toBe('2023-01-15T10:30:00.000Z');
+    });
+
     it('should return the latest snapshot', async () => {
       const mockRow = {
         id: 1,
@@ -135,6 +184,27 @@ describe('SnapshotService', () => {
   });
 
   describe('getSnapshotTimeline', () => {
+    it('should normalize string dates and JSON strings from SQLite', async () => {
+      const mockRows = [
+        {
+          id: 2,
+          version_number: 2,
+          created_at: '2023-01-02T00:00:00.000Z',
+          snapshot_data: JSON.stringify({
+            metadata: { totalTabs: 5, totalWindows: 1, totalGroups: 0 },
+          }),
+        },
+      ];
+
+      mockDb.all.mockResolvedValueOnce(mockRows);
+
+      const timeline = await service.getSnapshotTimeline(1, 'test-instance-id', 10);
+
+      expect(timeline).toHaveLength(1);
+      expect(timeline[0].createdAt).toBe('2023-01-02T00:00:00.000Z');
+      expect(timeline[0].metadata.totalTabs).toBe(5);
+    });
+
     it('should return timeline items', async () => {
       const mockRows = [
         {

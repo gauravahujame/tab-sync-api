@@ -122,32 +122,49 @@ app.use(morgan('combined', { stream }));
  * RATE LIMITING
  * ------------------------------------------------------------------
  */
-if (config.rateLimit.enabled) {
-  app.use(
-    rateLimit({
-      windowMs: config.rateLimit.windowMs,
-      max: config.rateLimit.maxRequests,
-      standardHeaders: true,
-      legacyHeaders: false,
+// General rate limiter for authenticated routes
+const generalLimiter = rateLimit({
+  windowMs: config.rateLimit.windowMs,
+  max: config.rateLimit.maxRequests,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (
+    req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction,
+    options: any,
+  ) => {
+    const ip = req.ip;
+    logger.warn(`Rate limit exceeded for IP: ${ip}, Path: ${req.path}`);
+    res.status(options.statusCode).json(options.message);
+  },
+  message: {
+    success: false,
+    error: 'Too many requests, please try again later.',
+  },
+});
 
-      handler: (
-        req: express.Request,
-        res: express.Response,
-        _next: express.NextFunction,
-        options: any,
-      ) => {
-        const ip = req.ip;
-        logger.warn(`Rate limit exceeded for IP: ${ip}, Path: ${req.path}`);
-        res.status(options.statusCode).json(options.message);
-      },
-
-      message: {
-        success: false,
-        error: 'Too many requests, please try again later.',
-      },
-    }),
-  );
-}
+// Stricter rate limiter for auth endpoints to prevent brute-force / lockout
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // 20 attempts per 15 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (
+    req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction,
+    options: any,
+  ) => {
+    const ip = req.ip;
+    logger.warn(`Auth rate limit exceeded for IP: ${ip}, Path: ${req.path}`);
+    res.status(options.statusCode).json(options.message);
+  },
+  message: {
+    success: false,
+    error: 'Too many authentication attempts, please try again later.',
+  },
+});
 
 /**
  * ------------------------------------------------------------------
@@ -176,11 +193,19 @@ app.use(express.json({ limit: '10mb' }));
 app.get('/api/v1/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
+
+if (config.rateLimit.enabled) {
+  app.use('/api/v1/auth', authLimiter);
+}
 app.use('/api/v1/auth', authRouter);
 
 // Auth middleware
 app.use(authMiddleware);
 app.use(instanceValidationMiddleware);
+
+if (config.rateLimit.enabled) {
+  app.use(generalLimiter);
+}
 
 // Protected routes
 app.use('/api/v1/admin', adminRouter);

@@ -38,8 +38,10 @@ export class SnapshotService {
       hash: snapshotHash.substring(0, 8),
     });
 
-    try {
-      // Check for duplicate using hash
+    const MAX_RETRIES = 3;
+
+    const doIngest = async (): Promise<SnapshotIngestResult> => {
+      // Check for duplicate using hash inside the transaction for consistency
       const existing = await this.db.get<SnapshotRow>(
         `SELECT id, version_number FROM snapshots
          WHERE user_id = $1 AND instance_id = $2 AND snapshot_hash = $3
@@ -62,30 +64,66 @@ export class SnapshotService {
       const snapshotJson = JSON.stringify(snapshotData);
       const sizeBytes = Buffer.byteLength(snapshotJson, 'utf8');
 
-      // Insert with atomic version number assignment
-      // Uses subquery to get max version and increment atomically
+      // Insert with atomic version number assignment.
+      // The single INSERT...SELECT statement is atomic; concurrent transactions
+      // can still collide on the unique (user_id, instance_id, version_number)
+      // constraint, so the caller retries on unique-constraint violations.
+      // snapshot_data is stringified so it is stored correctly as TEXT in SQLite
+      // and as JSONB in PostgreSQL.
       const result = await this.db.get<{ version_number: number }>(
         `INSERT INTO snapshots (user_id, instance_id, version_number, snapshot_data, snapshot_hash, size_bytes)
          SELECT $1, $2, COALESCE(MAX(version_number), 0) + 1, $3, $4, $5
          FROM snapshots
          WHERE user_id = $1 AND instance_id = $2
          RETURNING version_number`,
-        [userId, instanceId, snapshotData, snapshotHash, sizeBytes],
+        [userId, instanceId, snapshotJson, snapshotHash, sizeBytes],
       );
 
-      const versionNumber = result?.version_number || 1;
-
-      logger.info('[SNAPSHOT:INGEST] Snapshot stored', {
-        versionNumber,
-        sizeBytes,
-        tabCount: snapshotData.metadata?.totalTabs,
-      });
+      const versionNumber = result?.version_number ?? 1;
 
       return {
         versionNumber,
         isDuplicate: false,
         sizeBytes,
       };
+    };
+
+    try {
+      let lastError: Error | undefined;
+
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const result = await this.db.transaction(doIngest);
+
+          logger.info('[SNAPSHOT:INGEST] Snapshot stored', {
+            versionNumber: result.versionNumber,
+            sizeBytes: result.sizeBytes,
+            tabCount: snapshotData.metadata?.totalTabs,
+          });
+
+          return result;
+        } catch (error) {
+          lastError = error as Error;
+          const message = lastError.message?.toLowerCase() || '';
+          const isUniqueViolation =
+            message.includes('unique constraint') ||
+            message.includes('uniqueconstraint') ||
+            message.includes('sqlstate 23505') ||
+            message.includes('sqlite_constraint_unique');
+
+          if (!isUniqueViolation || attempt === MAX_RETRIES) {
+            throw error;
+          }
+
+          logger.warn('[SNAPSHOT:INGEST] Version collision, retrying', {
+            attempt,
+            userId,
+            instanceId: instanceId.substring(0, 8),
+          });
+        }
+      }
+
+      throw lastError || new Error('Failed to ingest snapshot after retries');
     } catch (error) {
       logger.error('[SNAPSHOT:INGEST] Failed to ingest snapshot', {
         error: (error as Error).message,
@@ -94,6 +132,32 @@ export class SnapshotService {
       });
       throw error;
     }
+  }
+
+  /**
+   * Parse a snapshot_data value that may be a JSON string (SQLite) or already an object (PostgreSQL)
+   */
+  private parseSnapshotData(raw: unknown): TabiumSnapshot {
+    if (raw === null || raw === undefined) {
+      throw new Error('Snapshot data is null or undefined');
+    }
+    if (typeof raw === 'string') {
+      return JSON.parse(raw) as TabiumSnapshot;
+    }
+    return raw as TabiumSnapshot;
+  }
+
+  /**
+   * Parse a date value that may be a Date, string, or number
+   */
+  private parseDate(raw: unknown): Date {
+    if (raw instanceof Date) {
+      return raw;
+    }
+    if (typeof raw === 'number') {
+      return new Date(raw);
+    }
+    return new Date(raw as string | number);
   }
 
   /**
@@ -108,7 +172,13 @@ export class SnapshotService {
         [userId, instanceId],
       );
 
-      return snapshot || null;
+      if (!snapshot) return null;
+
+      return {
+        ...snapshot,
+        snapshot_data: this.parseSnapshotData(snapshot.snapshot_data),
+        created_at: this.parseDate(snapshot.created_at),
+      };
     } catch (error) {
       logger.error('[SNAPSHOT:GET] Failed to get latest snapshot', {
         error: (error as Error).message,
@@ -134,7 +204,13 @@ export class SnapshotService {
         [userId, instanceId, versionNumber],
       );
 
-      return snapshot || null;
+      if (!snapshot) return null;
+
+      return {
+        ...snapshot,
+        snapshot_data: this.parseSnapshotData(snapshot.snapshot_data),
+        created_at: this.parseDate(snapshot.created_at),
+      };
     } catch (error) {
       logger.error('[SNAPSHOT:GET] Failed to get snapshot at version', {
         error: (error as Error).message,
@@ -166,11 +242,11 @@ export class SnapshotService {
 
       return snapshots.map(s => ({
         versionNumber: s.version_number,
-        createdAt: s.created_at.toISOString(),
+        createdAt: this.parseDate(s.created_at).toISOString(),
         metadata: {
-          totalTabs: (s.snapshot_data as TabiumSnapshot).metadata?.totalTabs || 0,
-          totalWindows: (s.snapshot_data as TabiumSnapshot).metadata?.totalWindows || 0,
-          totalGroups: (s.snapshot_data as TabiumSnapshot).metadata?.totalGroups || 0,
+          totalTabs: this.parseSnapshotData(s.snapshot_data).metadata?.totalTabs || 0,
+          totalWindows: this.parseSnapshotData(s.snapshot_data).metadata?.totalWindows || 0,
+          totalGroups: this.parseSnapshotData(s.snapshot_data).metadata?.totalGroups || 0,
         },
       }));
     } catch (error) {
@@ -294,7 +370,7 @@ export class SnapshotService {
     const buckets = new Map<number, SnapshotRow[]>();
 
     snapshots.forEach(s => {
-      const bucketKey = Math.floor(new Date(s.created_at).getTime() / intervalMs);
+      const bucketKey = Math.floor(this.parseDate(s.created_at).getTime() / intervalMs);
       if (!buckets.has(bucketKey)) {
         buckets.set(bucketKey, []);
       }

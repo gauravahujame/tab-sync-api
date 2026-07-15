@@ -14,12 +14,13 @@ describe('Authentication API', () => {
   // Declare client variable at the suite level
   type TestClient = ReturnType<typeof createTestClient>;
   let client: TestClient;
+  let userId: number;
 
   beforeAll(async () => {
-    // Create the test client with the test user's email
-    client = createTestClient(1, testUser.email, testUser.browserName);
     // Optionally create the test user in the database if needed
-    await createTestUser(testUser);
+    userId = await createTestUser(testUser);
+    // Create the test client with the user's actual database id
+    client = createTestClient(userId, testUser.email, testUser.browserName);
   });
 
   afterAll(async () => {
@@ -28,8 +29,6 @@ describe('Authentication API', () => {
 
   describe('GET /api/v1/auth/validate', () => {
     it('should validate a valid token', async () => {
-      const client = createTestClient(1, testUser.email);
-
       const response = await client.get('/api/v1/auth/validate');
 
       expect(response.status).toBe(200);
@@ -56,22 +55,31 @@ describe('Authentication API', () => {
   });
 
   describe('POST /api/v1/auth/login', () => {
+    const loginUser = {
+      email: 'login-test@example.com',
+      name: 'Login Test User',
+      token: 'login-token',
+      browserName: 'login-browser',
+    };
+    beforeAll(async () => {
+      await createTestUser(loginUser);
+    });
+
     it('should be accessible without authentication', async () => {
       const passwordHash = await bcrypt.hash('password123', 10);
-      await runAsync('UPDATE users SET password_hash = ?, token = ? WHERE email = ?', [
+      await runAsync('UPDATE users SET password_hash = ? WHERE email = ?', [
         passwordHash,
-        '',
-        testUser.email,
+        loginUser.email,
       ]);
 
       const response = await client.unauthenticated
         .post('/api/v1/auth/login')
-        .send({ email: testUser.email, password: 'password123' });
+        .send({ email: loginUser.email, password: 'password123' });
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('success', true);
       expect(response.body).toHaveProperty('token');
-      expect(response.body.user).toHaveProperty('email', testUser.email);
+      expect(response.body.user).toHaveProperty('email', loginUser.email);
     });
 
     it('should reject invalid credentials', async () => {

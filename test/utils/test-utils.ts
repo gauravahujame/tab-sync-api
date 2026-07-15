@@ -97,7 +97,13 @@ export const createTestUser = async (userData: {
     [email, name, token, browserName],
   );
 
-  return result.lastID;
+  const userId = result.lastID;
+
+  // Store a matching JWT in the token column so authMiddleware can validate it
+  const jwtToken = generateTestToken(userId, email, browserName);
+  await runAsync('UPDATE users SET token = ? WHERE id = ?', [jwtToken, userId]);
+
+  return userId;
 };
 
 /**

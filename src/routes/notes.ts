@@ -2,9 +2,9 @@
  * Notes routes - Domain-scoped user notes endpoints
  */
 
-import express, { Request, Response } from 'express';
+import express, { Response } from 'express';
 import { getDb } from '../db.js';
-import { authMiddleware } from '../middlewares/auth.js';
+import { AuthRequest } from '../types/index.js';
 import { NotesService } from '../services/NotesService.js';
 import { createNoteSchema, updateNoteSchema, noteRowToResponse } from '../types/note.types.js';
 import logger from '../utils/logger.js';
@@ -16,8 +16,8 @@ const notesService = new NotesService(getDb());
  * POST /api/v1/notes
  * Create a new note
  */
-router.post('/', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.post('/', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
 
   try {
     const validation = createNoteSchema.safeParse(req.body);
@@ -51,8 +51,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
  * GET /api/v1/notes/domain/:domain
  * Get all notes for a specific domain
  */
-router.get('/domain/:domain', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.get('/domain/:domain', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
   const { domain } = req.params;
   const limit = parseInt(req.query.limit as string) || 50;
   const offset = parseInt(req.query.offset as string) || 0;
@@ -90,8 +90,8 @@ router.get('/domain/:domain', authMiddleware, async (req: Request, res: Response
  * GET /api/v1/notes
  * Get all notes for the user
  */
-router.get('/', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.get('/', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
   const limit = parseInt(req.query.limit as string) || 100;
   const offset = parseInt(req.query.offset as string) || 0;
 
@@ -119,8 +119,8 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
  * GET /api/v1/notes/summary
  * Get domain summary (count of notes per domain)
  */
-router.get('/summary', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.get('/summary', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
 
   try {
     const summary = await notesService.getDomainSummary(userId);
@@ -145,8 +145,8 @@ router.get('/summary', authMiddleware, async (req: Request, res: Response) => {
  * GET /api/v1/notes/:noteId
  * Get a single note by ID
  */
-router.get('/:noteId', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.get('/:noteId', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
   const noteId = parseInt(req.params.noteId, 10);
 
   if (isNaN(noteId)) {
@@ -185,8 +185,8 @@ router.get('/:noteId', authMiddleware, async (req: Request, res: Response) => {
  * PUT /api/v1/notes/:noteId
  * Update a note
  */
-router.put('/:noteId', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.put('/:noteId', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
   const noteId = parseInt(req.params.noteId, 10);
 
   if (isNaN(noteId)) {
@@ -234,8 +234,8 @@ router.put('/:noteId', authMiddleware, async (req: Request, res: Response) => {
  * DELETE /api/v1/notes/:noteId
  * Delete a note
  */
-router.delete('/:noteId', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.delete('/:noteId', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
   const noteId = parseInt(req.params.noteId, 10);
 
   if (isNaN(noteId)) {

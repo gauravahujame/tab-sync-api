@@ -45,6 +45,12 @@ if (dbType === 'postgres' && !env.DB_NAME) {
   throw new Error('DB_NAME is required when DB_TYPE is postgres');
 }
 
+// Require an explicit JWT secret in production
+const jwtSecret = env.JWT_SECRET;
+if (env.NODE_ENV === 'production' && !jwtSecret) {
+  throw new Error('JWT_SECRET is required in production');
+}
+
 export const config = {
   port: env.PORT ? Number(env.PORT) : 3000,
   nodeEnv: env.NODE_ENV || 'development',
@@ -70,7 +76,7 @@ export const config = {
   logDir: env.LOG_DIR || './data/logs',
 
   // JWT
-  jwtSecret: env.JWT_SECRET || 'default-secret-key-change-in-production',
+  jwtSecret: jwtSecret || 'default-secret-key-change-in-production',
 
   // CORS
   allowedOrigins: env.ALLOWED_ORIGINS

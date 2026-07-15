@@ -2,9 +2,9 @@
  * Browsing history routes - Per-visit page tracking with tags
  */
 
-import express, { Request, Response } from 'express';
+import express, { Response } from 'express';
 import { getDb } from '../db.js';
-import { authMiddleware } from '../middlewares/auth.js';
+import { AuthRequest } from '../types/index.js';
 import { HistoryService } from '../services/HistoryService.js';
 import {
   createHistoryEntrySchema,
@@ -20,8 +20,8 @@ const historyService = new HistoryService(getDb());
  * POST /api/v1/history
  * Record a page visit (creates or updates existing entry by URL)
  */
-router.post('/', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.post('/', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
 
   try {
     const validation = createHistoryEntrySchema.safeParse(req.body);
@@ -56,8 +56,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
  * GET /api/v1/history
  * List browsing history with optional filters
  */
-router.get('/', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.get('/', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
 
   try {
     const tags = parseTagsQuery(req.query.tags as string | undefined);
@@ -106,8 +106,8 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
  * GET /api/v1/history/tags
  * Get tag summary for the user
  */
-router.get('/tags', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.get('/tags', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
 
   try {
     const summary = await historyService.getTagSummary(userId);
@@ -133,8 +133,8 @@ router.get('/tags', authMiddleware, async (req: Request, res: Response) => {
  * GET /api/v1/history/domains
  * Get domain summary for the user
  */
-router.get('/domains', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.get('/domains', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
 
   try {
     const summary = await historyService.getDomainSummary(userId);
@@ -160,8 +160,8 @@ router.get('/domains', authMiddleware, async (req: Request, res: Response) => {
  * GET /api/v1/history/:entryId
  * Get a single history entry
  */
-router.get('/:entryId', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.get('/:entryId', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
   const entryId = parseInt(req.params.entryId, 10);
 
   if (isNaN(entryId)) {
@@ -201,8 +201,8 @@ router.get('/:entryId', authMiddleware, async (req: Request, res: Response) => {
  * PUT /api/v1/history/:entryId
  * Update a history entry (title, tags)
  */
-router.put('/:entryId', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.put('/:entryId', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
   const entryId = parseInt(req.params.entryId, 10);
 
   if (isNaN(entryId)) {
@@ -251,8 +251,8 @@ router.put('/:entryId', authMiddleware, async (req: Request, res: Response) => {
  * DELETE /api/v1/history/:entryId
  * Delete a history entry
  */
-router.delete('/:entryId', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.delete('/:entryId', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
   const entryId = parseInt(req.params.entryId, 10);
 
   if (isNaN(entryId)) {

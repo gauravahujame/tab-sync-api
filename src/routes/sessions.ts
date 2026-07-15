@@ -1,19 +1,37 @@
-import express, { Request, Response } from 'express';
+import express, { Response } from 'express';
 import { z } from 'zod';
 import { getDb } from '../db.js';
-import { authMiddleware } from '../middlewares/auth.js';
 import { SessionService } from '../services/SessionService.js';
+import { AuthRequest } from '../types/index.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
 const sessionService = new SessionService(getDb());
+
+const tabSchema = z.object({
+  tabId: z.string().or(z.number()).optional(),
+  url: z.string().url().optional(),
+  title: z.string().optional(),
+  pinned: z.boolean().optional(),
+  groupId: z.union([z.string(), z.number()]).optional(),
+  active: z.boolean().optional(),
+  lastAccessed: z.number().optional(),
+});
+
+const windowSchema = z.object({
+  windowId: z.string().or(z.number()).optional(),
+  name: z.string().optional(),
+  focused: z.boolean().optional(),
+  type: z.enum(['normal', 'popup', 'panel', 'app', 'devtools']).optional(),
+  tabs: z.array(tabSchema).optional(),
+});
 
 // Validation schemas
 const createSessionSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().max(1000).optional(),
   tags: z.array(z.string()).optional(),
-  windows: z.array(z.any()).optional(),
+  windows: z.array(windowSchema).optional(),
   totalTabs: z.number().int().min(0).optional(),
   totalWindows: z.number().int().min(0).optional(),
 });
@@ -32,9 +50,9 @@ const batchCreateSchema = z.object({
  * POST /api/v1/sessions
  * Create a new session
  */
-router.post('/', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
-  const instanceId = req.headers['x-instance-id'] as string;
+router.post('/', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
+  const instanceId = req.instanceId;
 
   if (!instanceId) {
     return res.status(400).json({
@@ -75,8 +93,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
  * GET /api/v1/sessions
  * List all sessions for the user
  */
-router.get('/', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.get('/', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
   const limit = parseInt(req.query.limit as string) || 50;
   const offset = parseInt(req.query.offset as string) || 0;
 
@@ -103,8 +121,8 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
  * GET /api/v1/sessions/:sessionId
  * Get session details
  */
-router.get('/:sessionId', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.get('/:sessionId', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
   const { sessionId } = req.params;
 
   try {
@@ -136,8 +154,8 @@ router.get('/:sessionId', authMiddleware, async (req: Request, res: Response) =>
  * PUT /api/v1/sessions/:sessionId
  * Update session metadata
  */
-router.put('/:sessionId', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.put('/:sessionId', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
   const { sessionId } = req.params;
 
   try {
@@ -171,8 +189,8 @@ router.put('/:sessionId', authMiddleware, async (req: Request, res: Response) =>
  * DELETE /api/v1/sessions/:sessionId
  * Delete session
  */
-router.delete('/:sessionId', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+router.delete('/:sessionId', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
   const { sessionId } = req.params;
 
   try {
@@ -197,9 +215,9 @@ router.delete('/:sessionId', authMiddleware, async (req: Request, res: Response)
  * POST /api/v1/sessions/batch
  * Batch create sessions
  */
-router.post('/batch', authMiddleware, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
-  const instanceId = req.headers['x-instance-id'] as string;
+router.post('/batch', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
+  const instanceId = req.instanceId;
 
   if (!instanceId) {
     return res.status(400).json({

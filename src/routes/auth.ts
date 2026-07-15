@@ -167,7 +167,7 @@ authRouter.post('/login', async (req, res) => {
     };
 
     const token = jwt.sign(payload, config.jwtSecret, {
-      expiresIn: '3650d', // 10 year expiration
+      expiresIn: '365d',
     });
 
     // Update user with new token

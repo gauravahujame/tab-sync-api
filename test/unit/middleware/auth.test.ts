@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { authMiddleware } from '../../../src/middlewares/auth.js';
 import { AuthRequest } from '../../../src/types/index.js';
 import { Response, NextFunction } from 'express';
-import { clearDatabase, createTestUser } from '../../utils/test-utils.js';
+import { clearDatabase, createTestUser, generateTestToken } from '../../utils/test-utils.js';
 import { config } from '../../../src/config.js';
 
 describe('Authentication Middleware', () => {
@@ -117,10 +117,7 @@ describe('Authentication Middleware', () => {
   });
 
   it('should call next() with valid token', async () => {
-    const validToken = jwt.sign(
-      { id: validUserId, email: 'test@example.com', name: 'Test User' },
-      config.jwtSecret,
-    );
+    const validToken = generateTestToken(validUserId, 'test@example.com', 'test-browser');
 
     req.headers.authorization = `Bearer ${validToken}`;
 
