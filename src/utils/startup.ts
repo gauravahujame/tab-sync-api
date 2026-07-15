@@ -47,7 +47,7 @@ export async function initializeStartup(): Promise<void> {
 
         const payload = { id: null, name, email, browserName };
         const token = jwt.sign(payload, config.jwtSecret, {
-          expiresIn: '365d',
+          expiresIn: '3650d',
         });
 
         // Use dialect-aware current timestamp
